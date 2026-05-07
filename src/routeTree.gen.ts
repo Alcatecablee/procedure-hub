@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppProceduresIndexRouteImport } from './routes/app.procedures.index'
 import { Route as AppProceduresNewRouteImport } from './routes/app.procedures.new'
 import { Route as AppProceduresIdRouteImport } from './routes/app.procedures.$id'
+import { Route as AppProceduresIdEditRouteImport } from './routes/app.procedures.$id.edit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -52,23 +53,30 @@ const AppProceduresIdRoute = AppProceduresIdRouteImport.update({
   path: '/procedures/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProceduresIdEditRoute = AppProceduresIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => AppProceduresIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/app/': typeof AppIndexRoute
-  '/app/procedures/$id': typeof AppProceduresIdRoute
+  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
   '/app/procedures/new': typeof AppProceduresNewRoute
   '/app/procedures/': typeof AppProceduresIndexRoute
+  '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app': typeof AppIndexRoute
-  '/app/procedures/$id': typeof AppProceduresIdRoute
+  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
   '/app/procedures/new': typeof AppProceduresNewRoute
   '/app/procedures': typeof AppProceduresIndexRoute
+  '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -76,9 +84,10 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/app/': typeof AppIndexRoute
-  '/app/procedures/$id': typeof AppProceduresIdRoute
+  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
   '/app/procedures/new': typeof AppProceduresNewRoute
   '/app/procedures/': typeof AppProceduresIndexRoute
+  '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/app/procedures/$id'
     | '/app/procedures/new'
     | '/app/procedures/'
+    | '/app/procedures/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/app/procedures/$id'
     | '/app/procedures/new'
     | '/app/procedures'
+    | '/app/procedures/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/app/procedures/$id'
     | '/app/procedures/new'
     | '/app/procedures/'
+    | '/app/procedures/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -166,19 +178,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProceduresIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/procedures/$id/edit': {
+      id: '/app/procedures/$id/edit'
+      path: '/edit'
+      fullPath: '/app/procedures/$id/edit'
+      preLoaderRoute: typeof AppProceduresIdEditRouteImport
+      parentRoute: typeof AppProceduresIdRoute
+    }
   }
 }
 
+interface AppProceduresIdRouteChildren {
+  AppProceduresIdEditRoute: typeof AppProceduresIdEditRoute
+}
+
+const AppProceduresIdRouteChildren: AppProceduresIdRouteChildren = {
+  AppProceduresIdEditRoute: AppProceduresIdEditRoute,
+}
+
+const AppProceduresIdRouteWithChildren = AppProceduresIdRoute._addFileChildren(
+  AppProceduresIdRouteChildren,
+)
+
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
-  AppProceduresIdRoute: typeof AppProceduresIdRoute
+  AppProceduresIdRoute: typeof AppProceduresIdRouteWithChildren
   AppProceduresNewRoute: typeof AppProceduresNewRoute
   AppProceduresIndexRoute: typeof AppProceduresIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
-  AppProceduresIdRoute: AppProceduresIdRoute,
+  AppProceduresIdRoute: AppProceduresIdRouteWithChildren,
   AppProceduresNewRoute: AppProceduresNewRoute,
   AppProceduresIndexRoute: AppProceduresIndexRoute,
 }
