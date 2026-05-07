@@ -9,38 +9,188 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppImportRouteImport } from './routes/app.import'
+import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
+import { Route as AppAcknowledgmentsRouteImport } from './routes/app.acknowledgments'
+import { Route as AppProceduresIndexRouteImport } from './routes/app.procedures.index'
+import { Route as AppProceduresNewRouteImport } from './routes/app.procedures.new'
+import { Route as AppProceduresIdRouteImport } from './routes/app.procedures.$id'
+import { Route as AppProceduresIdEditRouteImport } from './routes/app.procedures.$id.edit'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppImportRoute = AppImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAcknowledgmentsRoute = AppAcknowledgmentsRouteImport.update({
+  id: '/acknowledgments',
+  path: '/acknowledgments',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
+  id: '/procedures/',
+  path: '/procedures/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresNewRoute = AppProceduresNewRouteImport.update({
+  id: '/procedures/new',
+  path: '/procedures/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresIdRoute = AppProceduresIdRouteImport.update({
+  id: '/procedures/$id',
+  path: '/procedures/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresIdEditRoute = AppProceduresIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => AppProceduresIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/app/acknowledgments': typeof AppAcknowledgmentsRoute
+  '/app/analytics': typeof AppAnalyticsRoute
+  '/app/import': typeof AppImportRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/': typeof AppIndexRoute
+  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
+  '/app/procedures/new': typeof AppProceduresNewRoute
+  '/app/procedures/': typeof AppProceduresIndexRoute
+  '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/app/acknowledgments': typeof AppAcknowledgmentsRoute
+  '/app/analytics': typeof AppAnalyticsRoute
+  '/app/import': typeof AppImportRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app': typeof AppIndexRoute
+  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
+  '/app/procedures/new': typeof AppProceduresNewRoute
+  '/app/procedures': typeof AppProceduresIndexRoute
+  '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/app/acknowledgments': typeof AppAcknowledgmentsRoute
+  '/app/analytics': typeof AppAnalyticsRoute
+  '/app/import': typeof AppImportRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/': typeof AppIndexRoute
+  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
+  '/app/procedures/new': typeof AppProceduresNewRoute
+  '/app/procedures/': typeof AppProceduresIndexRoute
+  '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/acknowledgments'
+    | '/app/analytics'
+    | '/app/import'
+    | '/app/settings'
+    | '/app/'
+    | '/app/procedures/$id'
+    | '/app/procedures/new'
+    | '/app/procedures/'
+    | '/app/procedures/$id/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/app/acknowledgments'
+    | '/app/analytics'
+    | '/app/import'
+    | '/app/settings'
+    | '/app'
+    | '/app/procedures/$id'
+    | '/app/procedures/new'
+    | '/app/procedures'
+    | '/app/procedures/$id/edit'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/acknowledgments'
+    | '/app/analytics'
+    | '/app/import'
+    | '/app/settings'
+    | '/app/'
+    | '/app/procedures/$id'
+    | '/app/procedures/new'
+    | '/app/procedures/'
+    | '/app/procedures/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +198,113 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/import': {
+      id: '/app/import'
+      path: '/import'
+      fullPath: '/app/import'
+      preLoaderRoute: typeof AppImportRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/analytics': {
+      id: '/app/analytics'
+      path: '/analytics'
+      fullPath: '/app/analytics'
+      preLoaderRoute: typeof AppAnalyticsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/acknowledgments': {
+      id: '/app/acknowledgments'
+      path: '/acknowledgments'
+      fullPath: '/app/acknowledgments'
+      preLoaderRoute: typeof AppAcknowledgmentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/procedures/': {
+      id: '/app/procedures/'
+      path: '/procedures'
+      fullPath: '/app/procedures/'
+      preLoaderRoute: typeof AppProceduresIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/procedures/new': {
+      id: '/app/procedures/new'
+      path: '/procedures/new'
+      fullPath: '/app/procedures/new'
+      preLoaderRoute: typeof AppProceduresNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/procedures/$id': {
+      id: '/app/procedures/$id'
+      path: '/procedures/$id'
+      fullPath: '/app/procedures/$id'
+      preLoaderRoute: typeof AppProceduresIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/procedures/$id/edit': {
+      id: '/app/procedures/$id/edit'
+      path: '/edit'
+      fullPath: '/app/procedures/$id/edit'
+      preLoaderRoute: typeof AppProceduresIdEditRouteImport
+      parentRoute: typeof AppProceduresIdRoute
+    }
   }
 }
 
+interface AppProceduresIdRouteChildren {
+  AppProceduresIdEditRoute: typeof AppProceduresIdEditRoute
+}
+
+const AppProceduresIdRouteChildren: AppProceduresIdRouteChildren = {
+  AppProceduresIdEditRoute: AppProceduresIdEditRoute,
+}
+
+const AppProceduresIdRouteWithChildren = AppProceduresIdRoute._addFileChildren(
+  AppProceduresIdRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppAcknowledgmentsRoute: typeof AppAcknowledgmentsRoute
+  AppAnalyticsRoute: typeof AppAnalyticsRoute
+  AppImportRoute: typeof AppImportRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppProceduresIdRoute: typeof AppProceduresIdRouteWithChildren
+  AppProceduresNewRoute: typeof AppProceduresNewRoute
+  AppProceduresIndexRoute: typeof AppProceduresIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAcknowledgmentsRoute: AppAcknowledgmentsRoute,
+  AppAnalyticsRoute: AppAnalyticsRoute,
+  AppImportRoute: AppImportRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppProceduresIdRoute: AppProceduresIdRouteWithChildren,
+  AppProceduresNewRoute: AppProceduresNewRoute,
+  AppProceduresIndexRoute: AppProceduresIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
