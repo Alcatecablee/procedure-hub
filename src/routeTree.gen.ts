@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppProceduresIndexRouteImport } from './routes/app.procedures.index'
+import { Route as AppProceduresNewRouteImport } from './routes/app.procedures.new'
 import { Route as AppProceduresIdRouteImport } from './routes/app.procedures.$id'
 
 const LoginRoute = LoginRouteImport.update({
@@ -41,6 +42,11 @@ const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
   path: '/procedures/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProceduresNewRoute = AppProceduresNewRouteImport.update({
+  id: '/procedures/new',
+  path: '/procedures/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProceduresIdRoute = AppProceduresIdRouteImport.update({
   id: '/procedures/$id',
   path: '/procedures/$id',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app/': typeof AppIndexRoute
   '/app/procedures/$id': typeof AppProceduresIdRoute
+  '/app/procedures/new': typeof AppProceduresNewRoute
   '/app/procedures/': typeof AppProceduresIndexRoute
 }
 export interface FileRoutesByTo {
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/app': typeof AppIndexRoute
   '/app/procedures/$id': typeof AppProceduresIdRoute
+  '/app/procedures/new': typeof AppProceduresNewRoute
   '/app/procedures': typeof AppProceduresIndexRoute
 }
 export interface FileRoutesById {
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/app/': typeof AppIndexRoute
   '/app/procedures/$id': typeof AppProceduresIdRoute
+  '/app/procedures/new': typeof AppProceduresNewRoute
   '/app/procedures/': typeof AppProceduresIndexRoute
 }
 export interface FileRouteTypes {
@@ -79,9 +88,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/'
     | '/app/procedures/$id'
+    | '/app/procedures/new'
     | '/app/procedures/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/app' | '/app/procedures/$id' | '/app/procedures'
+  to:
+    | '/'
+    | '/login'
+    | '/app'
+    | '/app/procedures/$id'
+    | '/app/procedures/new'
+    | '/app/procedures'
   id:
     | '__root__'
     | '/'
@@ -89,6 +105,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/'
     | '/app/procedures/$id'
+    | '/app/procedures/new'
     | '/app/procedures/'
   fileRoutesById: FileRoutesById
 }
@@ -135,6 +152,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProceduresIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/procedures/new': {
+      id: '/app/procedures/new'
+      path: '/procedures/new'
+      fullPath: '/app/procedures/new'
+      preLoaderRoute: typeof AppProceduresNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/procedures/$id': {
       id: '/app/procedures/$id'
       path: '/procedures/$id'
@@ -148,12 +172,14 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppProceduresIdRoute: typeof AppProceduresIdRoute
+  AppProceduresNewRoute: typeof AppProceduresNewRoute
   AppProceduresIndexRoute: typeof AppProceduresIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppProceduresIdRoute: AppProceduresIdRoute,
+  AppProceduresNewRoute: AppProceduresNewRoute,
   AppProceduresIndexRoute: AppProceduresIndexRoute,
 }
 
