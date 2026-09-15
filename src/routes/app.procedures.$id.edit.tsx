@@ -1,79 +1,271 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
+import { getProcedure, updateProcedure, getCategories } from "@/lib/procedures.server";
+import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/app/procedures/$id/edit")({ component: EditProcedure });
+export const Route = createFileRoute("/app/procedures/$id/edit")({
+  component: EditProcedure,
+});
 
 function EditProcedure() {
   const { id } = Route.useParams();
-  const { role, user } = useAuth();
+  const { org } = useAuth();
   const navigate = useNavigate();
-  const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [form, setForm] = useState<any>(null);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
+  const queryClient = useQueryClient();
+
+  const [title, setTitle] = useState("");
+  const [summary, setSummary] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<"critical" | "high" | "medium" | "informational">(
+    "medium",
+  );
+  const [categoryId, setCategoryId] = useState("");
+  const [ackRequired, setAckRequired] = useState(true);
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [expectedVersion, setExpectedVersion] = useState(0);
+
+  const { data: procData, isLoading } = useQuery({
+    queryKey: ["procedure", id, org?.organization.id],
+    queryFn: async () => {
+      if (!org?.organization.id) return null;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      return await getProcedure({
+        headers: session?.access_token
+          ? { authorization: "Bearer " + session.access_token }
+          : undefined,
+        data: { organizationId: org.organization.id, id },
+      } as any);
+    },
+    enabled: !!org?.organization.id,
+  });
+
+  const { data: catData } = useQuery({
+    queryKey: ["categories", org?.organization.id],
+    queryFn: async () => {
+      if (!org?.organization.id) return { categories: [] };
+      return await getCategories({ data: { organizationId: org.organization.id } } as any);
+    },
+    enabled: !!org?.organization.id,
+  });
+
+  const categories = catData?.categories || [];
 
   useEffect(() => {
-    if (role && role !== "admin") void navigate({ to: "/app/procedures" });
-    void (async () => {
-      const [{ data: p }, { data: c }] = await Promise.all([
-        supabase.from("procedures").select("*").eq("id", id).maybeSingle(),
-        supabase.from("categories").select("id,name").order("sort_order"),
-      ]);
-      setCats(c ?? []);
-      setForm(p);
-    })();
-  }, [id, role, navigate]);
+    if (procData?.procedure) {
+      const p = procData.procedure;
+      setTitle(p.title || "");
+      setSummary(p.summary || "");
+      setDescription(p.description || "");
+      setPriority(p.priority);
+      setCategoryId(p.category_id || "");
+      setAckRequired(p.acknowledgment_required);
+      setExpectedVersion(p.version_number);
+      setEffectiveDate(p.effective_date ? p.effective_date.split("T")[0] : "");
+      setExpiryDate(p.expiry_date ? p.expiry_date.split("T")[0] : "");
+    }
+  }, [procData]);
 
-  if (!form) return <div className="p-10 text-sm text-muted-foreground font-display italic">Loading…</div>;
+  const p = procData?.procedure;
+  const hasUnsavedChanges = Boolean(
+    p && (title !== p.title || summary !== (p.summary || "") || description !== p.description),
+  );
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    // snapshot previous version
-    await supabase.from("procedure_versions").insert({
-      procedure_id: id, version: form.version, title: form.title, description: form.description,
-      priority: form.priority, status: form.status, changed_by: user!.id, change_note: note || null,
-    });
-    const { error } = await supabase.from("procedures").update({
-      title: form.title, description: form.description, category_id: form.category_id,
-      priority: form.priority, status: form.status, source_platform: form.source_platform,
-      source_reference: form.source_reference, effective_date: form.effective_date,
-      expiry_date: form.expiry_date, acknowledgment_required: form.acknowledgment_required,
-      effective_immediately: form.effective_immediately, updated_by: user!.id,
-      version: form.version + 1,
-    }).eq("id", id);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Saved as v" + (form.version + 1));
-    void navigate({ to: "/app/procedures/$id", params: { id } });
-  };
+  const updateMutation = useMutation({
+    mutationFn: async (publish: boolean) => {
+      if (!org?.organization.id) throw new Error("No org");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      return await updateProcedure({
+        headers: session?.access_token
+          ? { authorization: "Bearer " + session.access_token }
+          : undefined,
+        data: {
+          id,
+          organizationId: org.organization.id,
+          title,
+          summary,
+          description,
+          priority,
+          categoryId: categoryId || undefined,
+          effectiveDate: effectiveDate || undefined,
+          expiryDate: expiryDate || undefined,
+          acknowledgmentRequired: ackRequired,
+          expectedVersion,
+          publish,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["procedure", id] });
+      queryClient.invalidateQueries({ queryKey: ["procedures"] });
+      navigate({ to: `/app/procedures/${id}` });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  useBlocker({
+    shouldBlockFn: () => {
+      if (!hasUnsavedChanges || updateMutation.isSuccess) return false;
+      return !window.confirm("You have unsaved changes. Are you sure you want to leave?");
+    },
+  });
+
+  if (isLoading) {
+    return <div className="p-10 font-display italic text-muted-foreground">Loading editor...</div>;
+  }
 
   return (
     <div>
-      <PageHeader eyebrow={`v${form.version} → v${form.version + 1}`} title="Revise procedure" subtitle="Saving creates a new version. Previous version is preserved in revisions." />
-      <form onSubmit={save} className="px-6 md:px-10 py-8 max-w-3xl space-y-5">
-        <Lbl label="Title"><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm" /></Lbl>
-        <Lbl label="Description"><textarea rows={10} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm font-serif leading-7" /></Lbl>
-        <div className="grid md:grid-cols-3 gap-4">
-          <Lbl label="Category"><select value={form.category_id ?? ""} onChange={(e) => setForm({ ...form, category_id: e.target.value })} className="w-full bg-card border border-input px-2.5 py-2 text-sm rounded-sm">{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Lbl>
-          <Lbl label="Priority"><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full bg-card border border-input px-2.5 py-2 text-sm rounded-sm">{["critical","high","medium","informational"].map((p) => <option key={p}>{p}</option>)}</select></Lbl>
-          <Lbl label="Status"><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full bg-card border border-input px-2.5 py-2 text-sm rounded-sm">{["active","draft","archived","replaced"].map((p) => <option key={p}>{p}</option>)}</select></Lbl>
-        </div>
-        <Lbl label="Change note (optional)"><input value={note} onChange={(e) => setNote(e.target.value)} className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm" /></Lbl>
-        <div className="rule-strong pt-5 flex gap-3">
-          <button type="submit" disabled={busy} className="bg-primary text-primary-foreground px-5 py-2.5 text-sm rounded-sm hover:bg-primary/90 disabled:opacity-60">{busy ? "…" : "Save revision"}</button>
-          <button type="button" onClick={() => void navigate({ to: "/app/procedures/$id", params: { id } })} className="px-5 py-2.5 text-sm rounded-sm border border-border hover:bg-muted">Cancel</button>
-        </div>
-      </form>
+      <PageHeader
+        eyebrow="Folio 02 - Editor"
+        title="Edit Procedure"
+        subtitle="Update the operational procedure."
+        actions={
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => updateMutation.mutate(false)}
+              disabled={updateMutation.isPending || !title}
+              className="bg-card text-foreground border border-input px-4 py-2 text-sm rounded-sm hover:bg-accent disabled:opacity-50"
+              aria-label="Save procedure as draft"
+            >
+              {updateMutation.isPending ? "Saving..." : "Save draft"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Are you sure you want to publish this update? This will make the new version active and visible to staff.",
+                  )
+                ) {
+                  updateMutation.mutate(true);
+                }
+              }}
+              disabled={updateMutation.isPending || !title}
+              className="bg-primary text-primary-foreground px-4 py-2 text-sm rounded-sm hover:bg-primary/90 disabled:opacity-50"
+              aria-label="Publish procedure to active registry"
+            >
+              {updateMutation.isPending ? "Publishing..." : "Publish Update"}
+            </button>
+          </div>
+        }
+      />
+
+      <div className="px-6 md:px-10 py-6 max-w-4xl">
+        {updateMutation.isError && (
+          <div className="mb-6 p-4 border border-destructive/30 bg-destructive/5 text-destructive rounded-sm text-sm">
+            {(updateMutation.error as Error).message}
+          </div>
+        )}
+        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+          <div>
+            <label htmlFor="title-input" className="block eyebrow mb-2">
+              Title
+            </label>
+            <input
+              id="title-input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full bg-card border border-input px-3 py-2 text-base rounded-sm"
+              placeholder="e.g. Incident Response Plan"
+              aria-required="true"
+              aria-invalid={!title ? "true" : "false"}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block eyebrow mb-2">Category</label>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+              >
+                <option value="">Uncategorized</option>
+                {categories.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block eyebrow mb-2">Priority</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as any)}
+                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+              >
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="informational">Informational</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block eyebrow mb-2">Summary</label>
+            <textarea
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+              rows={2}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block eyebrow mb-2">Effective Date</label>
+              <input
+                type="date"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
+                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+              />
+            </div>
+            <div>
+              <label className="block eyebrow mb-2">Expiry Date</label>
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block eyebrow mb-2">Content (Markdown)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm font-mono"
+              rows={12}
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={ackRequired}
+                onChange={(e) => setAckRequired(e.target.checked)}
+                className="rounded border-input text-primary focus:ring-primary"
+              />
+              <span className="text-sm font-medium">Require staff acknowledgment</span>
+            </label>
+          </div>
+        </form>
+      </div>
     </div>
   );
-}
-
-function Lbl({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><div className="eyebrow mb-1.5">{label}</div>{children}</div>;
 }

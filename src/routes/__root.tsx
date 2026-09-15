@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -74,10 +74,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Procedure Hub — Operational clarity from chat to record" },
-      { name: "description", content: "Procedure Hub centralizes operational procedures, updates, and expectations from internal communication platforms into one searchable source of truth." },
+      { title: "Procedure Hub - Operational clarity from chat to record" },
+      {
+        name: "description",
+        content:
+          "Procedure Hub centralizes operational procedures, updates, and expectations from internal communication platforms into one searchable source of truth.",
+      },
       { property: "og:title", content: "Procedure Hub" },
-      { property: "og:description", content: "Turn buried chat instructions into operational clarity." },
+      {
+        property: "og:description",
+        content: "Turn buried chat instructions into operational clarity.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -85,7 +92,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -101,6 +111,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground"
+        >
+          Skip to main content
+        </a>
         {children}
         <Scripts />
       </body>

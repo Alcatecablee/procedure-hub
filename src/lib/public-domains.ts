@@ -1,0 +1,143 @@
+/**
+ * Shared list of public consumer email domains that are banned
+ * from creating workspaces on Procedure Hub.
+ *
+ * Used on both client (org-onboarding.tsx) and server (organization.server.ts).
+ * Keep this list in one place so there is a single source of truth.
+ */
+export const PUBLIC_EMAIL_DOMAINS = new Set([
+  // Google
+  "gmail.com",
+  "googlemail.com",
+  // Microsoft
+  "hotmail.com",
+  "hotmail.co.uk",
+  "hotmail.fr",
+  "live.com",
+  "live.co.uk",
+  "live.fr",
+  "msn.com",
+  "outlook.com",
+  "outlook.co.uk",
+  "outlook.fr",
+  "passport.com",
+  // Yahoo
+  "yahoo.com",
+  "yahoo.co.uk",
+  "yahoo.fr",
+  "yahoo.de",
+  "yahoo.es",
+  "yahoo.it",
+  "yahoo.com.au",
+  "yahoo.com.br",
+  "yahoo.co.in",
+  "ymail.com",
+  "rocketmail.com",
+  // Apple
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  // AOL / Verizon
+  "aol.com",
+  "aim.com",
+  "verizon.net",
+  "ymail.com",
+  // Proton
+  "proton.me",
+  "protonmail.com",
+  "protonmail.ch",
+  "pm.me",
+  // Other major consumer providers
+  "zoho.com",
+  "mail.com",
+  "email.com",
+  "fastmail.com",
+  "fastmail.fm",
+  "hushmail.com",
+  "inbox.com",
+  "iname.com",
+  "juno.com",
+  "lycos.com",
+  "tutanota.com",
+  "tuta.io",
+  "tutanota.de",
+  "guerrillamail.com",
+  "mailinator.com",
+  "throwam.com",
+  "sharklasers.com",
+  "guerrillamailblock.com",
+  "grr.la",
+  "guerrillamail.info",
+  "guerrillamail.biz",
+  "guerrillamail.de",
+  "guerrillamail.net",
+  "guerrillamail.org",
+  "spam4.me",
+  "yopmail.com",
+  "trashmail.com",
+  "trashmail.me",
+  "trashmail.net",
+  "tempmail.com",
+  "temp-mail.org",
+  "dispostable.com",
+  "maildrop.cc",
+  "discard.email",
+  // Telecom / ISP webmail
+  "att.net",
+  "comcast.net",
+  "cox.net",
+  "sbcglobal.net",
+  "bellsouth.net",
+  "charter.net",
+  "earthlink.net",
+  "optonline.net",
+  "roadrunner.com",
+  "rr.com",
+  "sky.com",
+  "btinternet.com",
+  "virginmedia.com",
+  "orange.fr",
+  "wanadoo.fr",
+  "free.fr",
+  "laposte.net",
+  "sfr.fr",
+  "web.de",
+  "gmx.de",
+  "gmx.com",
+  "gmx.net",
+  "t-online.de",
+  "freenet.de",
+  "libero.it",
+  "tin.it",
+  "tiscali.it",
+  "virgilio.it",
+  "rediffmail.com",
+  "naver.com",
+  "hanmail.net",
+  "daum.net",
+  "nate.com",
+  "qq.com",
+  "163.com",
+  "126.com",
+  "sina.com",
+  "sohu.com",
+  "aliyun.com",
+  "foxmail.com",
+  "mail.ru",
+  "yandex.ru",
+  "yandex.com",
+  "rambler.ru",
+  "bk.ru",
+  "list.ru",
+  "inbox.ru",
+]);
+
+export function isPublicEmailDomain(email: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase().trim();
+  if (!domain) return false;
+  return PUBLIC_EMAIL_DOMAINS.has(domain);
+}
+
+export function getEmailDomain(email: string): string {
+  return email.split("@")[1]?.toLowerCase().trim() ?? "";
+}

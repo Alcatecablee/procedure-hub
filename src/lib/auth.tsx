@@ -1,75 +1,199 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+﻿/**
+ * Procedure Hub - Auth Context
+ *
+ * Loading sequence (in order, never skipped):
+ *   1. Resolve Supabase session
+ *   2. Resolve organization membership
+ *   3. Resolve role
+ *   4. Set loading = false
+ *   → Protected content may render
+ *
+ * This prevents the race condition where loading cleared before
+ * role/membership were known, causing momentary privilege escalation
+ * or incorrect redirects.
+ */
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import type {
+  MemberRole,
+  MemberStatus,
+  Organization,
+  OrganizationMember,
+  Profile,
+} from "@/integrations/supabase/types";
 
-export type AppRole = "admin" | "staff";
+// ─── PUBLIC TYPES ─────────────────────────────────────────────
+export type { MemberRole };
+
+export interface OrgContext {
+  organization: Organization;
+  member: OrganizationMember;
+  role: MemberRole;
+}
 
 interface AuthCtx {
   user: User | null;
   session: Session | null;
-  role: AppRole | null;
+  profile: Profile | null;
+  org: OrgContext | null;
+  /** true while any of session/membership/role are still resolving */
   loading: boolean;
+  /** true after initial session check - user is definitively unauthenticated */
+  unauthenticated: boolean;
+  /** user has a session but no active organization membership */
+  needsOnboarding: boolean;
   signOut: () => Promise<void>;
-  refreshRole: () => Promise<void>;
+  /** Re-resolve membership after org creation or role change */
+  refreshMembership: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
 
+// ─── HELPERS ─────────────────────────────────────────────────
+async function resolveProfile(userId: string): Promise<Profile | null> {
+  const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+  return data ?? null;
+}
+
+async function resolveMembership(userId: string): Promise<OrgContext | null> {
+  // Get the user's active membership (first active org).
+  const { data: member } = await supabase
+    .from("organization_members")
+    .select("*, organizations(*)")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!member) return null;
+
+  const memberCast = member as unknown as OrganizationMember & { organizations: Organization };
+  const org = memberCast.organizations;
+  if (!org || org.status === "suspended") return null;
+
+  return {
+    organization: org,
+    member: {
+      id: memberCast.id,
+      organization_id: memberCast.organization_id,
+      user_id: memberCast.user_id,
+      role: memberCast.role,
+      status: memberCast.status,
+      invited_by: memberCast.invited_by,
+      joined_at: memberCast.joined_at,
+      created_at: memberCast.created_at,
+      updated_at: memberCast.updated_at,
+    },
+    role: memberCast.role,
+  };
+}
+
+// ─── PROVIDER ────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [org, setOrg] = useState<OrgContext | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unauthenticated, setUnauthenticated] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  const loadRole = async (uid: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid)
-      .order("role", { ascending: true });
-    if (data?.some((r) => r.role === "admin")) setRole("admin");
-    else if (data?.length) setRole("staff");
-    else setRole(null);
-  };
+  /** Full resolution: profile + membership. Sets loading = false at the end. */
+  const resolveAll = useCallback(async (s: Session | null) => {
+    setLoading(true);
+    if (!s?.user) {
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setOrg(null);
+      setNeedsOnboarding(false);
+      setUnauthenticated(true);
+      setLoading(false);
+      return;
+    }
+
+    setUser(s.user);
+    setSession(s);
+    setUnauthenticated(false);
+
+    // Resolve in parallel - both are needed before we unblock rendering.
+    const [resolvedProfile, resolvedOrg] = await Promise.all([
+      resolveProfile(s.user.id),
+      resolveMembership(s.user.id),
+    ]);
+
+    setProfile(resolvedProfile);
+    setOrg(resolvedOrg);
+    setNeedsOnboarding(!resolvedOrg);
+    setLoading(false);
+  }, []);
+
+  const refreshMembership = useCallback(async () => {
+    if (!user) return;
+    const resolved = await resolveMembership(user.id);
+    setOrg(resolved);
+    setNeedsOnboarding(!resolved);
+  }, [user]);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        setTimeout(() => void loadRole(s.user.id), 0);
-      } else {
-        setRole(null);
-      }
+    // Initial session check.
+    void supabase.auth.getSession().then(({ data: { session: s } }) => {
+      void resolveAll(s);
     });
 
-    void supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) void loadRole(s.user.id);
-      setLoading(false);
+    // Subscribe to auth state changes.
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      void resolveAll(s);
     });
 
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [resolveAll]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
-  const refreshRole = async () => {
-    if (user) await loadRole(user.id);
-  };
-
   return (
-    <Ctx.Provider value={{ user, session, role, loading, signOut, refreshRole }}>
+    <Ctx.Provider
+      value={{
+        user,
+        session,
+        profile,
+        org,
+        loading,
+        unauthenticated,
+        needsOnboarding,
+        signOut,
+        refreshMembership,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthCtx {
   const c = useContext(Ctx);
   if (!c) throw new Error("useAuth must be used inside AuthProvider");
   return c;
+}
+
+// ─── CONVENIENCE SELECTORS ────────────────────────────────────
+/** True if user has one of the given roles in their organization. */
+export function useHasRole(...roles: MemberRole[]): boolean {
+  const { org } = useAuth();
+  if (!org) return false;
+  return roles.includes(org.role);
+}
+
+/** Shorthand: true for owner or admin. */
+export function useIsAdmin(): boolean {
+  return useHasRole("owner", "admin");
+}
+
+/** Shorthand: true for owner, admin, or manager. */
+export function useIsManager(): boolean {
+  return useHasRole("owner", "admin", "manager");
 }

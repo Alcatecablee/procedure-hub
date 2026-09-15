@@ -13,13 +13,15 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppTeamRouteImport } from './routes/app.team'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
-import { Route as AppImportRouteImport } from './routes/app.import'
 import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
 import { Route as AppAcknowledgmentsRouteImport } from './routes/app.acknowledgments'
 import { Route as AppProceduresIndexRouteImport } from './routes/app.procedures.index'
+import { Route as AppImportIndexRouteImport } from './routes/app.import.index'
 import { Route as AppProceduresNewRouteImport } from './routes/app.procedures.new'
-import { Route as AppProceduresIdRouteImport } from './routes/app.procedures.$id'
+import { Route as AppImportImportIdRouteImport } from './routes/app.import.$importId'
+import { Route as AppProceduresIdIndexRouteImport } from './routes/app.procedures.$id.index'
 import { Route as AppProceduresIdEditRouteImport } from './routes/app.procedures.$id.edit'
 
 const LoginRoute = LoginRouteImport.update({
@@ -42,14 +44,14 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppImportRoute = AppImportRouteImport.update({
-  id: '/import',
-  path: '/import',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
@@ -67,20 +69,30 @@ const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
   path: '/procedures/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppImportIndexRoute = AppImportIndexRouteImport.update({
+  id: '/import/',
+  path: '/import/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProceduresNewRoute = AppProceduresNewRouteImport.update({
   id: '/procedures/new',
   path: '/procedures/new',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProceduresIdRoute = AppProceduresIdRouteImport.update({
-  id: '/procedures/$id',
-  path: '/procedures/$id',
+const AppImportImportIdRoute = AppImportImportIdRouteImport.update({
+  id: '/import/$importId',
+  path: '/import/$importId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresIdIndexRoute = AppProceduresIdIndexRouteImport.update({
+  id: '/procedures/$id/',
+  path: '/procedures/$id/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProceduresIdEditRoute = AppProceduresIdEditRouteImport.update({
-  id: '/edit',
-  path: '/edit',
-  getParentRoute: () => AppProceduresIdRoute,
+  id: '/procedures/$id/edit',
+  path: '/procedures/$id/edit',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -89,26 +101,30 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app/acknowledgments': typeof AppAcknowledgmentsRoute
   '/app/analytics': typeof AppAnalyticsRoute
-  '/app/import': typeof AppImportRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/team': typeof AppTeamRoute
   '/app/': typeof AppIndexRoute
-  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
+  '/app/import/$importId': typeof AppImportImportIdRoute
   '/app/procedures/new': typeof AppProceduresNewRoute
+  '/app/import/': typeof AppImportIndexRoute
   '/app/procedures/': typeof AppProceduresIndexRoute
   '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
+  '/app/procedures/$id/': typeof AppProceduresIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app/acknowledgments': typeof AppAcknowledgmentsRoute
   '/app/analytics': typeof AppAnalyticsRoute
-  '/app/import': typeof AppImportRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/team': typeof AppTeamRoute
   '/app': typeof AppIndexRoute
-  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
+  '/app/import/$importId': typeof AppImportImportIdRoute
   '/app/procedures/new': typeof AppProceduresNewRoute
+  '/app/import': typeof AppImportIndexRoute
   '/app/procedures': typeof AppProceduresIndexRoute
   '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
+  '/app/procedures/$id': typeof AppProceduresIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -117,13 +133,15 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/app/acknowledgments': typeof AppAcknowledgmentsRoute
   '/app/analytics': typeof AppAnalyticsRoute
-  '/app/import': typeof AppImportRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/team': typeof AppTeamRoute
   '/app/': typeof AppIndexRoute
-  '/app/procedures/$id': typeof AppProceduresIdRouteWithChildren
+  '/app/import/$importId': typeof AppImportImportIdRoute
   '/app/procedures/new': typeof AppProceduresNewRoute
+  '/app/import/': typeof AppImportIndexRoute
   '/app/procedures/': typeof AppProceduresIndexRoute
   '/app/procedures/$id/edit': typeof AppProceduresIdEditRoute
+  '/app/procedures/$id/': typeof AppProceduresIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -133,26 +151,30 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/acknowledgments'
     | '/app/analytics'
-    | '/app/import'
     | '/app/settings'
+    | '/app/team'
     | '/app/'
-    | '/app/procedures/$id'
+    | '/app/import/$importId'
     | '/app/procedures/new'
+    | '/app/import/'
     | '/app/procedures/'
     | '/app/procedures/$id/edit'
+    | '/app/procedures/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/app/acknowledgments'
     | '/app/analytics'
-    | '/app/import'
     | '/app/settings'
+    | '/app/team'
     | '/app'
-    | '/app/procedures/$id'
+    | '/app/import/$importId'
     | '/app/procedures/new'
+    | '/app/import'
     | '/app/procedures'
     | '/app/procedures/$id/edit'
+    | '/app/procedures/$id'
   id:
     | '__root__'
     | '/'
@@ -160,13 +182,15 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/acknowledgments'
     | '/app/analytics'
-    | '/app/import'
     | '/app/settings'
+    | '/app/team'
     | '/app/'
-    | '/app/procedures/$id'
+    | '/app/import/$importId'
     | '/app/procedures/new'
+    | '/app/import/'
     | '/app/procedures/'
     | '/app/procedures/$id/edit'
+    | '/app/procedures/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -205,18 +229,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/team': {
+      id: '/app/team'
+      path: '/team'
+      fullPath: '/app/team'
+      preLoaderRoute: typeof AppTeamRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/settings': {
       id: '/app/settings'
       path: '/settings'
       fullPath: '/app/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/import': {
-      id: '/app/import'
-      path: '/import'
-      fullPath: '/app/import'
-      preLoaderRoute: typeof AppImportRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/analytics': {
@@ -240,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProceduresIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/import/': {
+      id: '/app/import/'
+      path: '/import'
+      fullPath: '/app/import/'
+      preLoaderRoute: typeof AppImportIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/procedures/new': {
       id: '/app/procedures/new'
       path: '/procedures/new'
@@ -247,55 +278,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProceduresNewRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/procedures/$id': {
-      id: '/app/procedures/$id'
+    '/app/import/$importId': {
+      id: '/app/import/$importId'
+      path: '/import/$importId'
+      fullPath: '/app/import/$importId'
+      preLoaderRoute: typeof AppImportImportIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/procedures/$id/': {
+      id: '/app/procedures/$id/'
       path: '/procedures/$id'
-      fullPath: '/app/procedures/$id'
-      preLoaderRoute: typeof AppProceduresIdRouteImport
+      fullPath: '/app/procedures/$id/'
+      preLoaderRoute: typeof AppProceduresIdIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/procedures/$id/edit': {
       id: '/app/procedures/$id/edit'
-      path: '/edit'
+      path: '/procedures/$id/edit'
       fullPath: '/app/procedures/$id/edit'
       preLoaderRoute: typeof AppProceduresIdEditRouteImport
-      parentRoute: typeof AppProceduresIdRoute
+      parentRoute: typeof AppRoute
     }
   }
 }
 
-interface AppProceduresIdRouteChildren {
-  AppProceduresIdEditRoute: typeof AppProceduresIdEditRoute
-}
-
-const AppProceduresIdRouteChildren: AppProceduresIdRouteChildren = {
-  AppProceduresIdEditRoute: AppProceduresIdEditRoute,
-}
-
-const AppProceduresIdRouteWithChildren = AppProceduresIdRoute._addFileChildren(
-  AppProceduresIdRouteChildren,
-)
-
 interface AppRouteChildren {
   AppAcknowledgmentsRoute: typeof AppAcknowledgmentsRoute
   AppAnalyticsRoute: typeof AppAnalyticsRoute
-  AppImportRoute: typeof AppImportRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppTeamRoute: typeof AppTeamRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppProceduresIdRoute: typeof AppProceduresIdRouteWithChildren
+  AppImportImportIdRoute: typeof AppImportImportIdRoute
   AppProceduresNewRoute: typeof AppProceduresNewRoute
+  AppImportIndexRoute: typeof AppImportIndexRoute
   AppProceduresIndexRoute: typeof AppProceduresIndexRoute
+  AppProceduresIdEditRoute: typeof AppProceduresIdEditRoute
+  AppProceduresIdIndexRoute: typeof AppProceduresIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAcknowledgmentsRoute: AppAcknowledgmentsRoute,
   AppAnalyticsRoute: AppAnalyticsRoute,
-  AppImportRoute: AppImportRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppTeamRoute: AppTeamRoute,
   AppIndexRoute: AppIndexRoute,
-  AppProceduresIdRoute: AppProceduresIdRouteWithChildren,
+  AppImportImportIdRoute: AppImportImportIdRoute,
   AppProceduresNewRoute: AppProceduresNewRoute,
+  AppImportIndexRoute: AppImportIndexRoute,
   AppProceduresIndexRoute: AppProceduresIndexRoute,
+  AppProceduresIdEditRoute: AppProceduresIdEditRoute,
+  AppProceduresIdIndexRoute: AppProceduresIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -308,3 +340,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

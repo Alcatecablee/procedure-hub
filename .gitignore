@@ -30,3 +30,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+.env
+.env.*
+.venv
+*.cjs
+*.py
+*.md.txt
+scripts/
+Procedure Hub Pitch deck.pptx
+Procedure Hub Pitch deck/
+
+supabase/.temp/

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useAuth } from "@/lib/auth";
+import { useAuth, useIsAdmin } from "@/lib/auth";
 
 const links = [
   { to: "/app", label: "Dashboard", num: "01" },
@@ -9,26 +9,30 @@ const links = [
 
 const adminLinks = [
   { to: "/app/import", label: "Import", num: "04" },
-  { to: "/app/analytics", label: "Analytics", num: "05" },
-  { to: "/app/settings", label: "Settings", num: "06" },
+  { to: "/app/team", label: "Team", num: "05" },
+  { to: "/app/analytics", label: "Analytics", num: "06" },
+  { to: "/app/settings", label: "Settings", num: "07" },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, role, signOut } = useAuth();
+  const { user, org, signOut } = useAuth();
+  const isAdmin = useIsAdmin();
   const path = useRouterState({ select: (r) => r.location.pathname });
 
   const isActive = (to: string) =>
-    to === "/app" ? path === "/app" : path.startsWith(to);
+    to === "/app" ? path === "/app" || path === "/app/" : path.startsWith(to);
 
   return (
     <div className="min-h-screen flex w-full bg-background paper-grain">
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-sidebar">
+      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-sidebar h-screen sticky top-0">
         <div className="px-6 py-6 border-b border-sidebar-border">
           <Link to="/app" className="block">
-            <div className="eyebrow mb-1.5">Vol. I — Operations</div>
+            <div className="eyebrow mb-1.5 truncate" title={org?.organization.name}>
+              {org?.organization.name ?? "Procedure Hub"}
+            </div>
             <div className="font-display text-2xl leading-none text-sidebar-foreground">
-              Procedure
-              <span className="block italic font-normal">Hub</span>
+              Operations
+              <span className="block italic font-normal">Record</span>
             </div>
           </Link>
         </div>
@@ -55,9 +59,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </ul>
           </div>
 
-          {role === "admin" && (
+          {isAdmin && (
             <div>
-              <div className="eyebrow px-3 mb-2">Section II — Admin</div>
+              <div className="eyebrow px-3 mb-2">Section II - Admin</div>
               <ul className="space-y-px">
                 {adminLinks.map((l) => (
                   <li key={l.to}>
@@ -79,14 +83,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="border-t border-sidebar-border px-4 py-4">
+        <div className="border-t border-sidebar-border px-4 py-4 shrink-0">
           <div className="eyebrow mb-1">Signed in</div>
           <div className="text-sm truncate text-sidebar-foreground">{user?.email}</div>
           <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground mt-0.5">
-            {role ?? "—"}
+            {org?.role ?? "-"}
           </div>
           <button
-            onClick={() => void signOut()}
+            onClick={() => {
+              if (window.confirm("Are you sure you want to sign out?")) {
+                void signOut();
+              }
+            }}
             className="mt-3 w-full text-left text-xs font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors"
           >
             Sign out →
@@ -94,17 +102,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0">
-        <div className="md:hidden border-b border-border px-4 py-3 flex items-center justify-between">
-          <Link to="/app" className="font-display text-lg">Procedure Hub</Link>
-          <button
-            onClick={() => void signOut()}
-            className="text-xs font-mono uppercase tracking-[0.12em] text-muted-foreground"
-          >
-            Sign out
-          </button>
+      <main id="main-content" className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
+        {/* Mobile Header */}
+        <div className="md:hidden border-b border-border px-4 py-3 flex items-center justify-between shrink-0 bg-background z-10">
+          <Link to="/app" className="font-display text-lg truncate">
+            {org?.organization.name ?? "Procedure Hub"}
+          </Link>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => {
+                if (window.confirm("Are you sure you want to sign out?")) {
+                  void signOut();
+                }
+              }}
+              className="text-xs font-mono uppercase tracking-[0.12em] text-muted-foreground"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
-        {children}
+        <div className="flex-1 overflow-auto relative">{children}</div>
       </main>
     </div>
   );

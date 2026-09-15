@@ -79,7 +79,7 @@
 :root {
   --radius: 4px;
 
-  /* Paper/ink palette — warm off-white, deep cool ink */
+  /* Paper/ink palette - warm off-white, deep cool ink */
   --paper: oklch(0.985 0.004 80);
   --background: oklch(0.985 0.004 80);
   --foreground: oklch(0.18 0.012 260);
@@ -103,7 +103,7 @@
   --secondary-foreground: oklch(0.18 0.012 260);
 
   --muted: oklch(0.95 0.005 80);
-  --muted-foreground: oklch(0.48 0.012 260);
+  --muted-foreground: oklch(0.4 0.012 260);
 
   --accent: oklch(0.93 0.012 250);
   --accent-foreground: oklch(0.22 0.04 250);
@@ -117,17 +117,17 @@
   --input: oklch(0.9 0.006 80);
   --ring: oklch(0.4 0.05 250);
 
-  /* Priority — desaturated, editorial */
+  /* Priority - desaturated, editorial */
   --priority-critical: oklch(0.46 0.16 27);
-  --priority-high: oklch(0.55 0.13 55);
-  --priority-medium: oklch(0.5 0.06 230);
-  --priority-info: oklch(0.55 0.012 260);
+  --priority-high: oklch(0.4 0.13 55);
+  --priority-medium: oklch(0.4 0.06 230);
+  --priority-info: oklch(0.4 0.012 260);
 
   /* Status */
   --status-active: oklch(0.45 0.09 155);
-  --status-archived: oklch(0.55 0.012 260);
-  --status-replaced: oklch(0.5 0.05 280);
-  --status-draft: oklch(0.55 0.06 80);
+  --status-archived: oklch(0.4 0.012 260);
+  --status-replaced: oklch(0.4 0.05 280);
+  --status-draft: oklch(0.4 0.06 80);
 
   --chart-1: oklch(0.32 0.06 250);
   --chart-2: oklch(0.45 0.09 155);
@@ -168,7 +168,7 @@
   --secondary-foreground: oklch(0.94 0.005 80);
 
   --muted: oklch(0.23 0.01 260);
-  --muted-foreground: oklch(0.66 0.012 260);
+  --muted-foreground: oklch(0.75 0.012 260);
 
   --accent: oklch(0.27 0.025 250);
   --accent-foreground: oklch(0.92 0.02 240);
@@ -182,14 +182,14 @@
   --input: oklch(0.28 0.01 260);
   --ring: oklch(0.7 0.03 240);
 
-  --priority-critical: oklch(0.7 0.17 25);
+  --priority-critical: oklch(0.75 0.17 25);
   --priority-high: oklch(0.78 0.12 60);
   --priority-medium: oklch(0.75 0.08 230);
-  --priority-info: oklch(0.7 0.012 260);
+  --priority-info: oklch(0.75 0.012 260);
 
   --status-active: oklch(0.7 0.1 155);
-  --status-archived: oklch(0.65 0.012 260);
-  --status-replaced: oklch(0.72 0.06 280);
+  --status-archived: oklch(0.75 0.012 260);
+  --status-replaced: oklch(0.75 0.06 280);
   --status-draft: oklch(0.75 0.07 80);
 
   --chart-1: oklch(0.86 0.03 240);
@@ -222,12 +222,18 @@
     color: var(--color-foreground);
     font-feature-settings: "ss01", "cv11";
   }
-  h1, h2, h3, .font-display {
+  h1,
+  h2,
+  h3,
+  .font-display {
     font-family: var(--font-serif);
     font-feature-settings: "lnum", "ss01";
     letter-spacing: -0.01em;
   }
-  .font-mono, code, kbd, pre {
+  .font-mono,
+  code,
+  kbd,
+  pre {
     font-family: var(--font-mono);
   }
   .num {
@@ -268,12 +274,30 @@
     background-color: color-mix(in oklab, var(--color-surface-2) 70%, transparent);
   }
 
-  /* Subtle paper grain — handmade authenticity, no images */
+  /* Subtle paper grain - handmade authenticity, no images */
   .paper-grain {
     background-image:
-      radial-gradient(circle at 12% 18%, color-mix(in oklab, var(--color-foreground) 4%, transparent) 0.5px, transparent 1px),
-      radial-gradient(circle at 78% 62%, color-mix(in oklab, var(--color-foreground) 3%, transparent) 0.5px, transparent 1px),
-      radial-gradient(circle at 42% 88%, color-mix(in oklab, var(--color-foreground) 3%, transparent) 0.5px, transparent 1px);
-    background-size: 220px 220px, 180px 180px, 260px 260px;
+      radial-gradient(
+        circle at 12% 18%,
+        color-mix(in oklab, var(--color-foreground) 4%, transparent) 0.5px,
+        transparent 1px
+      ),
+      radial-gradient(
+        circle at 78% 62%,
+        color-mix(in oklab, var(--color-foreground) 3%, transparent) 0.5px,
+        transparent 1px
+      ),
+      radial-gradient(
+        circle at 42% 88%,
+        color-mix(in oklab, var(--color-foreground) 3%, transparent) 0.5px,
+        transparent 1px
+      );
+    background-size:
+      220px 220px,
+      180px 180px,
+      260px 260px;
   }
+}
+html {
+  scroll-behavior: smooth;
 }

@@ -1,4 +1,4 @@
-export function PageHeader({
+﻿export function PageHeader({
   eyebrow,
   title,
   subtitle,
@@ -15,7 +15,9 @@ export function PageHeader({
         {eyebrow && <div className="eyebrow mb-3">{eyebrow}</div>}
         <div className="flex items-end justify-between gap-6 flex-wrap">
           <div>
-            <h1 className="font-display text-4xl md:text-5xl leading-[1.05] tracking-tight">{title}</h1>
+            <h1 className="font-display text-4xl md:text-5xl leading-[1.05] tracking-tight">
+              {title}
+            </h1>
             {subtitle && (
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">{subtitle}</p>
             )}
