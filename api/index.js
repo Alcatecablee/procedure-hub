@@ -1,17 +1,13 @@
-
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  api: { bodyParser: false },
 };
 
 import server from '../dist/server/server.js';
-import { Readable } from 'node:stream';
 
 export default async function handler(req, res) {
-  // Convert Node req to Web Request
   const protocol = req.headers['x-forwarded-proto'] || 'http';
-  const url = new URL(req.url || '/', \\://\\);
+  const host = req.headers.host || 'localhost';
+  const url = new URL(req.url || '/', protocol + '://' + host);
   
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
@@ -22,10 +18,7 @@ export default async function handler(req, res) {
     }
   }
 
-  const init = {
-    method: req.method,
-    headers,
-  };
+  const init = { method: req.method, headers };
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     init.body = new ReadableStream({
@@ -42,12 +35,8 @@ export default async function handler(req, res) {
   
   try {
     const webRes = await server.fetch(webReq);
-    
-    // Convert Web Response back to Node res
     res.statusCode = webRes.status;
-    webRes.headers.forEach((value, key) => {
-      res.setHeader(key, value);
-    });
+    webRes.headers.forEach((value, key) => res.setHeader(key, value));
     
     if (webRes.body) {
       const reader = webRes.body.getReader();
