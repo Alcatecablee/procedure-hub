@@ -1,8 +1,8 @@
-import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
-import { getProcedure, updateProcedure, getCategories } from "@/lib/procedures.server";
+import { getProcedure, updateProcedure, getCategories, getDepartments } from "@/lib/procedures.server";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ function EditProcedure() {
     "medium",
   );
   const [categoryId, setCategoryId] = useState("");
-  const [department, setDepartment] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [ackRequired, setAckRequired] = useState(true);
   const [effectiveDate, setEffectiveDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
@@ -70,7 +70,7 @@ function EditProcedure() {
       setDescription(p.description || "");
       setPriority(p.priority);
       setCategoryId(p.category_id || "");
-      setDepartment(p.department || "");
+      setDepartmentId(p.department_id || "");
       setAckRequired(p.acknowledgment_required);
       setExpectedVersion(p.version_number);
       setEffectiveDate(p.effective_date ? p.effective_date.split("T")[0] : "");
@@ -101,7 +101,7 @@ function EditProcedure() {
           description,
           priority,
           categoryId: categoryId || undefined,
-          department: department || undefined,
+          departmentId: departmentId || undefined,
           effectiveDate: effectiveDate || undefined,
           expiryDate: expiryDate || undefined,
           acknowledgmentRequired: ackRequired,

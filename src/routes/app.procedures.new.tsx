@@ -1,8 +1,8 @@
-import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
-import { createProcedure, getCategories } from "@/lib/procedures.server";
+import { createProcedure, getCategories, getDepartments } from "@/lib/procedures.server";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -22,11 +22,19 @@ function NewProcedure() {
     "medium",
   );
   const [categoryId, setCategoryId] = useState("");
-  const [department, setDepartment] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [ackRequired, setAckRequired] = useState(true);
   const [effectiveDate, setEffectiveDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
 
+  const { data: deptData } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      return getDepartments({ headers: { Authorization: "Bearer ${session?.access_token}" } });
+    },
+  });
+  const departments = deptData || [];
   const { data: catData, isLoading: catLoading, isError: catError } = useQuery({
     queryKey: ["categories", org?.organization.id],
     queryFn: async () => {
@@ -61,7 +69,7 @@ function NewProcedure() {
           description,
           priority,
           categoryId: categoryId || undefined,
-          department: department || undefined,
+          departmentId: departmentId || undefined,
           effectiveDate: effectiveDate || undefined,
           expiryDate: expiryDate || undefined,
           acknowledgmentRequired: ackRequired,

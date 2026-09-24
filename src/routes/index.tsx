@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 
 export const Route = createFileRoute("/")({
@@ -57,11 +57,7 @@ function Landing() {
             >
               The System
             </a>
-            <Link
-              to="/login"
-              className="font-mono text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors group"
-            >
-              Sign in{" "}
+            <Link to="/login" className="font-mono text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors group">Sign in{" "}
               <span className="inline-block transition-transform group-hover:translate-x-0.5">
                 &rarr;
               </span>
@@ -91,11 +87,7 @@ function Landing() {
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 justify-center">
-              <Link
-                to="/login"
-                className="inline-flex h-12 items-center justify-center bg-primary px-8 text-[15px] font-medium text-primary-foreground transition-all hover:bg-primary/90 rounded-lg hover:scale-[1.02] hover:shadow-md shadow-sm w-full sm:w-auto"
-              >
-                Open the record
+              <Link to="/login" className="inline-flex h-12 items-center justify-center bg-primary px-8 text-[15px] font-medium text-primary-foreground transition-all hover:bg-primary/90 rounded-lg hover:scale-[1.02] hover:shadow-md shadow-sm w-full sm:w-auto">Open the record
                 <span className="ml-2" aria-hidden>
                   &rarr;
                 </span>
@@ -263,10 +255,10 @@ function Landing() {
           </h2>
           <div className="mt-12 flex items-center justify-center gap-6">
             <Link
-              to="/login"
+              to="mailto:support@procedure-hub.com"
               className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 text-sm font-medium rounded-lg hover:bg-primary/90 transition-all hover:scale-[1.02] hover:shadow-md"
             >
-              Create your workspace
+              Contact us for enterprise access
               <span aria-hidden>&rarr;</span>
             </Link>
           </div>

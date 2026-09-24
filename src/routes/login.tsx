@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -111,7 +111,7 @@ function LoginPage() {
           </p>
         </div>
         <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-          Compiled · Bound · Held in common
+          Compiled Â· Bound Â· Held in common
         </div>
       </div>
 
@@ -125,7 +125,7 @@ function LoginPage() {
 
           {mode === "reset" && resetSent ? (
             <div>
-              <div className="eyebrow mb-2">Folio 02 · Password reset</div>
+              <div className="eyebrow mb-2">Folio 02 Â· Password reset</div>
               <h1 className="font-display text-3xl mb-4">Check your inbox</h1>
               <p className="text-sm text-muted-foreground mb-6">
                 We've sent a password reset link to <strong>{email}</strong>. Follow the link in the
@@ -145,10 +145,10 @@ function LoginPage() {
             <>
               <div className="eyebrow mb-2">
                 {mode === "signin"
-                  ? "Folio 02 · Sign in"
+                  ? "Folio 02 Â· Sign in"
                   : mode === "signup"
-                    ? "Folio 02 · Open the record"
-                    : "Folio 02 · Reset password"}
+                    ? "Folio 02 Â· Open the record"
+                    : "Folio 02 Â· Reset password"}
               </div>
               <h1 className="font-display text-3xl mb-8">
                 {mode === "signin"

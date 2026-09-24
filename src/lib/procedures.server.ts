@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -79,7 +79,7 @@ export async function createProcedureCore(dataRaw: any, token: string) {
     _expiry_date: data.expiryDate || null,
     _ack_required: data.acknowledgmentRequired,
     _publish: data.publish,
-    _department: data.department,
+    _department_id: data.departmentId,
   });
 
   if (error) throw new Error(error.message);
@@ -126,7 +126,7 @@ export async function updateProcedureCore(dataRaw: any, token: string) {
     _expiry_date: data.expiryDate || null,
     _ack_required: data.acknowledgmentRequired,
     _publish: data.publish,
-    _department: data.department,
+    _department_id: data.departmentId,
     _expected_version: data.expectedVersion,
   });
 
@@ -503,4 +503,20 @@ export const deleteCategory = createServerFn({ method: "POST" }).handler(async (
 
   if (error) throw new Error(error.message);
   return { success: true };
+});
+
+export const getDepartments = createServerFn({ method: "GET" }).handler(async () => {
+  const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+  if (!token) return [];
+  const ctx = await getCallerContext(token);
+
+  const svc = getServiceClient();
+  const { data, error } = await svc
+    .from("departments")
+    .select("id, name")
+    .eq("organization_id", ctx.orgId)
+    .order("name");
+
+  if (error) throw new Error(error.message);
+  return data || [];
 });
