@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useAuth, useIsAdmin } from "@/lib/auth";
+import { useAuth, useIsAdmin, useIsManager } from "@/lib/auth";
 
 const links = [
   { to: "/app", label: "Dashboard", num: "01" },
@@ -7,8 +7,11 @@ const links = [
   { to: "/app/acknowledgments", label: "Acknowledgments", num: "03" },
 ] as const;
 
-const adminLinks = [
+const managerLinks = [
   { to: "/app/import", label: "Import", num: "04" },
+] as const;
+
+const adminLinks = [
   { to: "/app/team", label: "Team", num: "05" },
   { to: "/app/analytics", label: "Analytics", num: "06" },
   { to: "/app/settings", label: "Settings", num: "07" },
@@ -17,6 +20,7 @@ const adminLinks = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, org, signOut } = useAuth();
   const isAdmin = useIsAdmin();
+  const isManager = useIsManager();
   const path = useRouterState({ select: (r) => r.location.pathname });
 
   const isActive = (to: string) =>
@@ -24,8 +28,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex w-full bg-background paper-grain">
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-sidebar h-screen sticky top-0">
-        <div className="px-6 py-6 border-b border-sidebar-border">
+      <aside className="hidden md:flex w-72 shrink-0 flex-col border-r border-border bg-sidebar h-screen sticky top-0">
+        <div className="px-6 py-8 pb-4">
           <Link to="/app" className="block">
             <div className="eyebrow mb-1.5 truncate" title={org?.organization.name}>
               {org?.organization.name ?? "Procedure Hub"}
@@ -45,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <li key={l.to}>
                   <Link
                     to={l.to}
-                    className={`group flex items-baseline gap-3 px-3 py-1.5 text-sm rounded-sm transition-colors ${
+                    className={`group flex items-baseline gap-3 px-3 py-2 text-[15px] rounded-md transition-all duration-200 ${
                       isActive(l.to)
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
                         : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60"
@@ -59,15 +63,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </ul>
           </div>
 
+          {isManager && (
+            <div>
+              <div className="eyebrow px-3 mb-2 mt-6">Section II - Management</div>
+              <ul className="space-y-px">
+                {managerLinks.map((l) => (
+                  <li key={l.to}>
+                    <Link
+                      to={l.to}
+                      className={`group flex items-baseline gap-3 px-3 py-2 text-[15px] rounded-md transition-all duration-200 ${
+                        isActive(l.to)
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60"
+                      }`}
+                    >
+                      <span className="font-mono text-[10px] text-muted-foreground">{l.num}</span>
+                      <span>{l.label}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {isAdmin && (
             <div>
-              <div className="eyebrow px-3 mb-2">Section II - Admin</div>
+              <div className="eyebrow px-3 mb-2 mt-6">Section III - Admin</div>
               <ul className="space-y-px">
                 {adminLinks.map((l) => (
                   <li key={l.to}>
                     <Link
                       to={l.to}
-                      className={`group flex items-baseline gap-3 px-3 py-1.5 text-sm rounded-sm transition-colors ${
+                      className={`group flex items-baseline gap-3 px-3 py-2 text-[15px] rounded-md transition-all duration-200 ${
                         isActive(l.to)
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60"
@@ -83,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="border-t border-sidebar-border px-4 py-4 shrink-0">
+        <div className="px-6 py-6 shrink-0">
           <div className="eyebrow mb-1">Signed in</div>
           <div className="text-sm truncate text-sidebar-foreground">{user?.email}</div>
           <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground mt-0.5">

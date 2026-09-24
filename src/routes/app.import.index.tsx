@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useAuth, useIsAdmin } from "@/lib/auth";
+import { useAuth, useIsManager } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
 import { ingestTeamsExport, getImports } from "@/lib/import.server";
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/app/import/")({ component: ImportPage });
 
 function ImportPage() {
   const { org } = useAuth();
-  const isAdmin = useIsAdmin();
+  const isManager = useIsManager();
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const [platform, setPlatform] = useState<
@@ -21,8 +21,8 @@ function ImportPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) void navigate({ to: "/app" });
-  }, [isAdmin, navigate]);
+    if (!isManager) void navigate({ to: "/app" });
+  }, [isManager, navigate]);
 
   const {
     data: pastImports,

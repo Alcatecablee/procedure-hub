@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { getImport, approveImportDraft, rejectImportDraft } from "@/lib/import.server";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, useIsAdmin } from "@/lib/auth";
+import { useAuth, useIsManager } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { PriorityBadge } from "@/components/badges";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/app/import/$importId")({ component: Revie
 function ReviewPage() {
   const { importId } = Route.useParams();
   const { org } = useAuth();
-  const isAdmin = useIsAdmin();
+  const isManager = useIsManager();
   const navigate = useNavigate();
   const [busy, setBusy] = useState<Record<string, boolean>>({});
 
@@ -54,8 +54,8 @@ function ReviewPage() {
   const [edits, setEdits] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    if (!isAdmin) void navigate({ to: "/app" });
-  }, [isAdmin, navigate]);
+    if (!isManager) void navigate({ to: "/app" });
+  }, [isManager, navigate]);
 
   if (isLoading || !catsData)
     return <div className="p-10 text-muted-foreground">Loading review data...</div>;
