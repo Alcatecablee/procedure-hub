@@ -45,13 +45,13 @@ async function getCallerContext(token: string) {
   return { user, orgId: membership.organization_id, role: membership.role as MemberRole, departmentId: membership.department_id };
 }
 
-function enforceAdmin(role: MemberRole) {
+export function enforceAdmin(role: MemberRole) {
   if (role !== 'owner' && role !== 'admin') {
     throw new Error("Forbidden: requires owner or admin role");
   }
 }
 
-function enforceAdminOrManager(role: MemberRole) {
+export function enforceAdminOrManager(role: MemberRole) {
   if (role !== "owner" && role !== "admin" && role !== "manager") {
     throw new Error("Forbidden: requires owner, admin, or manager role");
   }

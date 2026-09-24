@@ -26,7 +26,7 @@ import {
 export const Route = createFileRoute("/app/team")({ component: Team });
 
 function Team() {
-  const { membership } = useAuth();
+  const { org } = useAuth();
   const navigate = useNavigate();
   const isAdmin = useIsAdmin();
   useEffect(() => {

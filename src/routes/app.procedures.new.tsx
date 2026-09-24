@@ -1,4 +1,4 @@
-﻿import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
@@ -183,12 +183,18 @@ function NewProcedure() {
             
             <div>
               <label className="block eyebrow mb-2">Assigned Department</label>
-              <input
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                placeholder="e.g. Call Center (Optional)"
+              <select
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
                 className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
-              />
+              >
+                <option value="">Global (All Departments)</option>
+                {departments.map((d: any) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

@@ -17,7 +17,7 @@ import {
 export const Route = createFileRoute("/app/department")({ component: Department });
 
 function Department() {
-  const { membership } = useAuth();
+  const { org } = useAuth();
   const navigate = useNavigate();
   const isManager = useIsManager();
   const isAdmin = useIsAdmin();

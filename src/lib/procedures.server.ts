@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { getCallerContext, getServiceClient } from "./team.server";
 
 export function getUserClient(token: string) {
   const url = process.env.SUPABASE_URL;
@@ -53,6 +54,7 @@ const CreateProcedureInput = z.object({
   expiryDate: z.string().optional().nullable(),
   acknowledgmentRequired: z.boolean().default(true),
   publish: z.boolean().default(false),
+  departmentId: z.string().uuid().optional().nullable(),
 });
 
 export async function createProcedureCore(dataRaw: any, token: string) {
@@ -99,6 +101,7 @@ const UpdateProcedureInput = z.object({
   acknowledgmentRequired: z.boolean(),
   publish: z.boolean().default(false),
   expectedVersion: z.number(),
+  departmentId: z.string().uuid().optional().nullable(),
 });
 
 export async function updateProcedureCore(dataRaw: any, token: string) {
@@ -429,7 +432,7 @@ export const createCategory = createServerFn({ method: "POST" }).handler(async (
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
 
   const slug =
     data.slug ||
@@ -460,7 +463,7 @@ export const updateCategory = createServerFn({ method: "POST" }).handler(async (
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
 
   const slug =
     data.slug ||
@@ -493,7 +496,7 @@ export const deleteCategory = createServerFn({ method: "POST" }).handler(async (
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
 
   const { error } = await client
     .from("categories")
