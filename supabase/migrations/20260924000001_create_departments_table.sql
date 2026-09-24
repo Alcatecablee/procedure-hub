@@ -1,4 +1,4 @@
-CREATE TABLE public.departments (
+﻿CREATE TABLE public.departments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 100),
@@ -12,6 +12,8 @@ ALTER TABLE public.organization_members ADD COLUMN IF NOT EXISTS department_id U
 ALTER TABLE public.procedures ADD COLUMN IF NOT EXISTS department_id UUID REFERENCES public.departments(id) ON DELETE SET NULL;
 ALTER TABLE public.procedure_versions ADD COLUMN IF NOT EXISTS department_id UUID REFERENCES public.departments(id) ON DELETE SET NULL;
 
+DROP POLICY IF EXISTS "member_can_read_procedures" ON public.procedures;
+DROP POLICY IF EXISTS "member_can_read_versions" ON public.procedure_versions;
 ALTER TABLE public.procedures DROP COLUMN IF EXISTS department;
 ALTER TABLE public.procedure_versions DROP COLUMN IF EXISTS department;
 ALTER TABLE public.organization_members DROP COLUMN IF EXISTS department;
@@ -208,7 +210,6 @@ END;
 $function$;
 
 -- Update RLS for procedures
-DROP POLICY IF EXISTS "member_can_read_procedures" ON public.procedures;
 CREATE POLICY "member_can_read_procedures"
   ON public.procedures FOR SELECT
   TO authenticated
@@ -226,7 +227,6 @@ CREATE POLICY "member_can_read_procedures"
     )
   );
 
-DROP POLICY IF EXISTS "member_can_read_versions" ON public.procedure_versions;
 CREATE POLICY "member_can_read_versions"
   ON public.procedure_versions FOR SELECT
   TO authenticated
