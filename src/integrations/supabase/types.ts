@@ -364,15 +364,19 @@ export type Database = {
       };
     };
     Views: {
-      org_compliance: {
+      procedure_member_compliance: {
         Row: {
           organization_id: string;
           procedure_id: string;
-          title: string;
+          procedure_title: string;
           current_version_id: string | null;
-          required_count: number;
-          acknowledged_count: number;
-          compliance_pct: number | null;
+          current_version_number: number | null;
+          procedure_department_id: string | null;
+          user_id: string;
+          member_department_id: string | null;
+          latest_ack_version_id: string | null;
+          latest_ack_date: string | null;
+          compliance_status: "ACKNOWLEDGED" | "OUTSTANDING" | "REQUIRES_REACK";
         };
         Relationships: any[];
       };

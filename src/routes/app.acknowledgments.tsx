@@ -1,117 +1,149 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
-import { PriorityBadge } from "@/components/badges";
-import { toast } from "sonner";
+import { getStaffCompliance } from "@/lib/compliance.server";
 
 export const Route = createFileRoute("/app/acknowledgments")({ component: Acks });
 
-interface Row {
-  id: string;
-  title: string;
-  version: number;
-  priority: "critical" | "high" | "medium" | "informational";
-  updated_at: string;
-  acked: boolean;
-  acknowledged_at: string | null;
-}
-
 function Acks() {
   const { user } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const [{ data: procs }, { data: acks }] = await Promise.all([
-          supabase
-            .from("procedures")
-            .select("id,title,version_number,current_version_id,priority,updated_at")
-            .eq("status", "active")
-            .eq("acknowledgment_required", true)
-            .order("updated_at", { ascending: false }),
-          user
-            ? supabase
-                .from("acknowledgments")
-                .select("procedure_id,procedure_version_id,acknowledged_at")
-                .eq("user_id", user.id)
-            : Promise.resolve({ data: [] }),
-        ]);
-        const ackMap = new Map(
-          (acks ?? []).map((a) => [
-            `${a.procedure_id}:${a.procedure_version_id}`,
-            a.acknowledged_at,
-          ]),
-        );
-        setRows(
-          (procs ?? []).map((p) => ({
-            ...p,
-            version: p.version_number,
-            acked: ackMap.has(`${p.id}:${p.current_version_id}`),
-            acknowledged_at: ackMap.get(`${p.id}:${p.current_version_id}`) ?? null,
-          })),
-        );
-      } catch (err) {
-        toast.error("Failed to load acknowledgments.");
-        setError("Failed to load acknowledgments. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [user?.id]);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["staff-compliance", user?.id],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      return getStaffCompliance({ headers: { Authorization: `Bearer ${session?.access_token}` } });
+    },
+    enabled: !!user,
+  });
+
+  if (isLoading) return <div className="p-8">Loading compliance...</div>;
+  if (isError) return <div className="p-8 text-red-500">Failed to load compliance data.</div>;
+  if (!data) return null;
 
   return (
-    <div>
+    <div className="max-w-5xl mx-auto pb-12">
       <PageHeader
-        eyebrow="Folio 03"
-        title="Your acknowledgments"
-        subtitle="Procedures you have signed, and those still outstanding."
+        eyebrow="My Compliance"
+        title="Acknowledgments"
+        description="Review and acknowledge your required procedures."
       />
-      <div className="px-6 md:px-10 py-6 max-w-4xl" aria-live="polite">
-        {loading ? (
-          <div className="py-10 text-sm text-muted-foreground font-display italic">Loading...</div>
-        ) : error ? (
-          <div className="py-10 text-sm text-destructive">{error}</div>
-        ) : rows.length === 0 ? (
-          <div className="py-10 text-sm text-muted-foreground font-display italic">
-            Nothing requires acknowledgment.
-          </div>
-        ) : (
-          <ul className="divide-y divide-border border-t border-border-strong">
-            {rows.map((r) => (
-              <li key={r.id} className="ledger-row">
-                <Link
-                  to="/app/procedures/$id"
-                  params={{ id: r.id }}
-                  className="block py-4 grid grid-cols-12 gap-4 items-baseline"
-                >
-                  <div className="col-span-7">
-                    <div className="text-[15px]">{r.title}</div>
-                    <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground mt-1">
-                      v{r.version} ·{" "}
-                      {r.acked
-                        ? `Signed ${new Date(r.acknowledged_at!).toLocaleDateString()}`
-                        : "Outstanding"}
-                    </div>
-                  </div>
-                  <div className="col-span-5 flex items-center justify-end gap-2">
-                    <PriorityBadge value={r.priority} />
-                    <span
-                      className={`font-mono text-[10.5px] uppercase tracking-[0.12em] ${r.acked ? "text-status-active" : "text-priority-high"}`}
-                    >
-                      {r.acked ? "✓ Signed" : "Sign required"}
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+
+      {data.totalRequired === 0 ? (
+        <div className="bg-card border border-border p-8 rounded-sm text-center">
+          <p className="text-muted-foreground">No required procedures</p>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          
+          {data.outstanding.length > 0 && (
+            <section>
+              <h3 className="text-lg font-semibold mb-4 text-red-600 dark:text-red-400">Action Required: Outstanding</h3>
+              <div className="bg-card border border-red-200 dark:border-red-900 rounded-sm overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Procedure</th>
+                      <th className="px-4 py-3 font-medium">Version</th>
+                      <th className="px-4 py-3 font-medium text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {data.outstanding.map((row) => (
+                      <tr key={row.procedure_id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium">
+                          <Link to={`/app/procedures/${row.procedure_id}`} className="hover:underline">
+                            {row.procedure_title}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">v{row.current_version_number}</td>
+                        <td className="px-4 py-3 text-right">
+                          <Link to={`/app/procedures/${row.procedure_id}`} className="text-primary hover:underline">
+                            Review & Acknowledge
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {data.requiresReack.length > 0 && (
+            <section>
+              <h3 className="text-lg font-semibold mb-4 text-amber-600 dark:text-amber-400">Action Required: Updated Procedures</h3>
+              <div className="bg-card border border-amber-200 dark:border-amber-900 rounded-sm overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Procedure</th>
+                      <th className="px-4 py-3 font-medium">Previous Ack</th>
+                      <th className="px-4 py-3 font-medium">Current Version</th>
+                      <th className="px-4 py-3 font-medium text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {data.requiresReack.map((row) => (
+                      <tr key={row.procedure_id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium">
+                          <Link to={`/app/procedures/${row.procedure_id}`} className="hover:underline">
+                            {row.procedure_title}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {row.latest_ack_date ? new Date(row.latest_ack_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">v{row.current_version_number}</td>
+                        <td className="px-4 py-3 text-right">
+                          <Link to={`/app/procedures/${row.procedure_id}`} className="text-primary hover:underline">
+                            Review Changes
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {data.acknowledged.length > 0 && (
+            <section>
+              <h3 className="text-lg font-semibold mb-4 text-green-600 dark:text-green-400">Up to Date</h3>
+              <div className="bg-card border border-green-200 dark:border-green-900/50 rounded-sm overflow-hidden opacity-80">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Procedure</th>
+                      <th className="px-4 py-3 font-medium">Version</th>
+                      <th className="px-4 py-3 font-medium text-right">Acknowledged On</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {data.acknowledged.map((row) => (
+                      <tr key={row.procedure_id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium">
+                          <Link to={`/app/procedures/${row.procedure_id}`} className="hover:underline">
+                            {row.procedure_title}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">v{row.current_version_number}</td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">
+                          {row.latest_ack_date ? new Date(row.latest_ack_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+        </div>
+      )}
     </div>
   );
 }

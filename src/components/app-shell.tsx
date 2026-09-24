@@ -16,7 +16,8 @@ const managerLinks = [
 const adminLinks = [
   { to: "/app/import", label: "Import", num: "04" },
   { to: "/app/team", label: "Team", num: "05" },
-  { to: "/app/settings", label: "Settings", num: "06" },
+  { to: "/app/compliance", label: "Compliance", num: "06" },
+  { to: "/app/settings", label: "Settings", num: "07" },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {

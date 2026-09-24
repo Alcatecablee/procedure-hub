@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppTeamRouteImport } from './routes/app.team'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppDepartmentRouteImport } from './routes/app.department'
+import { Route as AppComplianceRouteImport } from './routes/app.compliance'
 import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
 import { Route as AppAcknowledgmentsRouteImport } from './routes/app.acknowledgments'
 import { Route as AppProceduresIndexRouteImport } from './routes/app.procedures.index'
@@ -58,6 +59,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppDepartmentRoute = AppDepartmentRouteImport.update({
   id: '/department',
   path: '/department',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComplianceRoute = AppComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app/acknowledgments': typeof AppAcknowledgmentsRoute
   '/app/analytics': typeof AppAnalyticsRoute
+  '/app/compliance': typeof AppComplianceRoute
   '/app/department': typeof AppDepartmentRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/team': typeof AppTeamRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/app/acknowledgments': typeof AppAcknowledgmentsRoute
   '/app/analytics': typeof AppAnalyticsRoute
+  '/app/compliance': typeof AppComplianceRoute
   '/app/department': typeof AppDepartmentRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/team': typeof AppTeamRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/app/acknowledgments': typeof AppAcknowledgmentsRoute
   '/app/analytics': typeof AppAnalyticsRoute
+  '/app/compliance': typeof AppComplianceRoute
   '/app/department': typeof AppDepartmentRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/team': typeof AppTeamRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/acknowledgments'
     | '/app/analytics'
+    | '/app/compliance'
     | '/app/department'
     | '/app/settings'
     | '/app/team'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/acknowledgments'
     | '/app/analytics'
+    | '/app/compliance'
     | '/app/department'
     | '/app/settings'
     | '/app/team'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/acknowledgments'
     | '/app/analytics'
+    | '/app/compliance'
     | '/app/department'
     | '/app/settings'
     | '/app/team'
@@ -262,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDepartmentRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/compliance': {
+      id: '/app/compliance'
+      path: '/compliance'
+      fullPath: '/app/compliance'
+      preLoaderRoute: typeof AppComplianceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/analytics': {
       id: '/app/analytics'
       path: '/analytics'
@@ -324,6 +343,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAcknowledgmentsRoute: typeof AppAcknowledgmentsRoute
   AppAnalyticsRoute: typeof AppAnalyticsRoute
+  AppComplianceRoute: typeof AppComplianceRoute
   AppDepartmentRoute: typeof AppDepartmentRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTeamRoute: typeof AppTeamRoute
@@ -339,6 +359,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAcknowledgmentsRoute: AppAcknowledgmentsRoute,
   AppAnalyticsRoute: AppAnalyticsRoute,
+  AppComplianceRoute: AppComplianceRoute,
   AppDepartmentRoute: AppDepartmentRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTeamRoute: AppTeamRoute,
