@@ -71,8 +71,11 @@ export const getTeamMembers = createServerFn({ method: "GET" }).handler(async ()
   enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
-  const { data: members, error } = await svc
-    .from("organization_members")
+  let query = svc.from("organization_members");
+  if (ctx.role === "manager") {
+    query = query.eq("department_id", ctx.departmentId);
+  }
+  const { data: members, error } = await query
     .select(
       `
       id,
@@ -114,8 +117,11 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
   enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
-  const { data: members, error } = await svc
-    .from("organization_members")
+  let query = svc.from("organization_members");
+  if (ctx.role === "manager") {
+    query = query.eq("department_id", ctx.departmentId);
+  }
+  const { data: members, error } = await query
     .select(
       `
       id,

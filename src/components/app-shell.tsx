@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+﻿import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth, useIsAdmin, useIsManager } from "@/lib/auth";
 
 const links = [
@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }}
             className="mt-3 w-full text-left text-xs font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors"
           >
-            Sign out →
+            Sign out â†’
           </button>
         </div>
       </aside>
