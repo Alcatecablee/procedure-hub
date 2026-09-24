@@ -386,6 +386,10 @@ export type Database = {
         Args: Record<never, never>;
         Returns: string | null;
       };
+      get_my_department_id: {
+        Args: { _org_id: string };
+        Returns: string | null;
+      };
       is_member: {
         Args: { _org_id: string };
         Returns: boolean;
