@@ -4,11 +4,11 @@ import { motion } from "framer-motion";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Procedure Hub - Capture. Codify. Acknowledge." },
+      { title: "Procedure Hub - Operational clarity from chat to record" },
       {
         name: "description",
         content:
-          "Give teams one consistent answer, and give auditors their evidence automatically by turning chaotic Teams chats into a governed operational ledger.",
+          "Centralize operational procedures, updates, and expectations from Teams, Slack, and WhatsApp into one searchable source of truth.",
       },
     ],
   }),
@@ -80,12 +80,14 @@ function Landing() {
             className="flex flex-col items-center max-w-4xl"
           >
             <h1 className="font-display text-5xl md:text-7xl leading-[1.05] tracking-tight text-foreground">
-              Same question, different answer
-              <span className="block italic text-ink-soft mt-2">depending on who you ask.</span>
+              Turn buried chat instructions
+              <span className="block italic text-ink-soft mt-2">into operational clarity.</span>
             </h1>
 
             <p className="mt-8 max-w-2xl text-lg md:text-xl leading-relaxed text-ink-soft">
-              Procedure Hub gathers the operational workarounds that scatter across Teams, and binds them into a single, searchable, acknowledged record. Give staff one consistent answer, and give compliance teams their audit evidence automatically.
+              Procedure Hub gathers the operational procedures, rule changes, and expectations that
+              scatter across Microsoft Teams, Slack, and WhatsApp - and binds them into a single,
+              searchable, acknowledged record.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 justify-center">
@@ -117,7 +119,8 @@ function Landing() {
               From the field
             </div>
             <blockquote className="font-display text-xl md:text-2xl italic leading-snug text-ink-soft max-w-2xl">
-              &ldquo;When a crisis hits, half the team works around it because nobody remembers the official rule. The real manual isn't in a wiki; it's buried in a Teams chat.&rdquo;
+              &ldquo;The escalation rule was posted once, in March. By June nobody could find it.
+              Half the team had a different version of the truth.&rdquo;
             </blockquote>
             <div className="mt-8 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
               - Operations lead, hybrid support team
@@ -147,10 +150,10 @@ function Landing() {
               <ul className="divide-y divide-border">
                 {[
                   ["Important messages get buried under thousands of replies.", "Drift"],
-                  ["Staff rely on memory, leading to inconsistent answers internally.", "Confusion"],
-                  ["Audit evidence is pulled manually from a dozen systems.", "The Dread"],
+                  ["Staff forget procedures and ask the same questions weekly.", "Repetition"],
+                  ["Managers repeat reminders daily across channels.", "Fatigue"],
                   ["No one knows who has read what - accountability disappears.", "Opacity"],
-                  ["Operational workarounds shift quietly, without a record.", "Inconsistency"],
+                  ["Operational expectations shift quietly, without a record.", "Inconsistency"],
                 ].map(([line, tag]) => (
                   <motion.li
                     key={line}
