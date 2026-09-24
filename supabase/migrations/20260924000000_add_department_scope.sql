@@ -18,7 +18,7 @@ CREATE OR REPLACE FUNCTION atomic_create_procedure(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $$
+AS $function$
 DECLARE
   _proc_id UUID := gen_random_uuid();
   _ver_id UUID := gen_random_uuid();
@@ -68,7 +68,7 @@ BEGIN
 
   RETURN _proc_id;
 END;
-$$;
+$function$;
 
 DROP FUNCTION IF EXISTS atomic_update_procedure;
 CREATE OR REPLACE FUNCTION atomic_update_procedure(
@@ -89,7 +89,7 @@ CREATE OR REPLACE FUNCTION atomic_update_procedure(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $$
+AS $function$
 DECLARE
   _current RECORD;
   _has_changes BOOLEAN := false;
@@ -167,7 +167,7 @@ BEGIN
 
   RETURN TRUE;
 END;
-$$;
+$function$;
 
 -- Update RLS for procedures
 DROP POLICY IF EXISTS "member_can_read_procedures" ON public.procedures;
