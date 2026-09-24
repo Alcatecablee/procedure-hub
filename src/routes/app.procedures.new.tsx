@@ -30,7 +30,11 @@ function NewProcedure() {
     queryKey: ["categories", org?.organization.id],
     queryFn: async () => {
       if (!org?.organization.id) return { categories: [] };
-      return await getCategories({ data: { organizationId: org.organization.id } } as any);
+      const { data: { session } } = await supabase.auth.getSession();
+      return await getCategories({ 
+        headers: session?.access_token ? { authorization: "Bearer " + session.access_token } : undefined,
+        data: { organizationId: org.organization.id } 
+      } as any);
     },
     enabled: !!org?.organization.id,
   });
@@ -83,7 +87,19 @@ function NewProcedure() {
         title="New Procedure"
         subtitle="Draft a new operational procedure."
         actions={
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (!hasUnsavedChanges || window.confirm("You have unsaved changes. Discard them?")) {
+                  navigate({ to: "/app/procedures" });
+                }
+              }}
+              className="text-muted-foreground hover:text-foreground px-3 py-2 text-sm font-medium transition-colors"
+              aria-label="Cancel"
+            >
+              Cancel
+            </button>
             <button
               type="button"
               onClick={() => createMutation.mutate(false)}

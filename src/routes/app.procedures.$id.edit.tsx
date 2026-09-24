@@ -50,7 +50,11 @@ function EditProcedure() {
     queryKey: ["categories", org?.organization.id],
     queryFn: async () => {
       if (!org?.organization.id) return { categories: [] };
-      return await getCategories({ data: { organizationId: org.organization.id } } as any);
+      const { data: { session } } = await supabase.auth.getSession();
+      return await getCategories({ 
+        headers: session?.access_token ? { authorization: "Bearer " + session.access_token } : undefined,
+        data: { organizationId: org.organization.id } 
+      } as any);
     },
     enabled: !!org?.organization.id,
   });
@@ -129,12 +133,24 @@ function EditProcedure() {
         title="Edit Procedure"
         subtitle="Update the operational procedure."
         actions={
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (!hasUnsavedChanges || window.confirm("You have unsaved changes. Discard them?")) {
+                  navigate({ to: `/app/procedures/${id}` });
+                }
+              }}
+              className="text-muted-foreground hover:text-foreground px-3 py-2 text-sm font-medium transition-colors"
+              aria-label="Cancel"
+            >
+              Cancel
+            </button>
             <button
               type="button"
               onClick={() => updateMutation.mutate(false)}
               disabled={updateMutation.isPending || !title}
-              className="bg-card text-foreground border border-input px-4 py-2 text-sm rounded-sm hover:bg-accent disabled:opacity-50"
+              className="bg-card text-foreground border border-input px-4 py-2 text-sm rounded-md shadow-sm hover:bg-accent transition-all disabled:opacity-50"
               aria-label="Save procedure as draft"
             >
               {updateMutation.isPending ? "Saving..." : "Save draft"}
@@ -151,7 +167,7 @@ function EditProcedure() {
                 }
               }}
               disabled={updateMutation.isPending || !title}
-              className="bg-primary text-primary-foreground px-4 py-2 text-sm rounded-sm hover:bg-primary/90 disabled:opacity-50"
+              className="bg-primary text-primary-foreground px-4 py-2 text-sm rounded-md shadow-sm hover:bg-primary/90 transition-all hover:scale-[1.02] disabled:opacity-50"
               aria-label="Publish procedure to active registry"
             >
               {updateMutation.isPending ? "Publishing..." : "Publish Update"}
@@ -160,9 +176,9 @@ function EditProcedure() {
         }
       />
 
-      <div className="px-6 md:px-10 py-6 max-w-4xl">
+      <div className="px-6 md:px-10 pt-8 md:pt-12 pb-16 max-w-4xl">
         {updateMutation.isError && (
-          <div className="mb-6 p-4 border border-destructive/30 bg-destructive/5 text-destructive rounded-sm text-sm">
+          <div className="mb-8 p-6 border border-destructive/30 bg-destructive/5 text-destructive rounded-xl shadow-sm text-sm">
             {(updateMutation.error as Error).message}
           </div>
         )}
@@ -175,7 +191,7 @@ function EditProcedure() {
               id="title-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-card border border-input px-3 py-2 text-base rounded-sm"
+              className="w-full bg-card border border-input px-4 py-2.5 text-base rounded-md shadow-sm focus:ring-primary focus:border-primary transition-all"
               placeholder="e.g. Incident Response Plan"
               aria-required="true"
               aria-invalid={!title ? "true" : "false"}
@@ -188,7 +204,7 @@ function EditProcedure() {
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+                className="w-full bg-card border border-input px-3 py-2.5 text-sm rounded-md shadow-sm focus:ring-primary focus:border-primary transition-all"
               >
                 <option value="">Uncategorized</option>
                 {categories.map((c: any) => (
@@ -203,7 +219,7 @@ function EditProcedure() {
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as any)}
-                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+                className="w-full bg-card border border-input px-3 py-2.5 text-sm rounded-md shadow-sm focus:ring-primary focus:border-primary transition-all"
               >
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -218,7 +234,7 @@ function EditProcedure() {
             <textarea
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+              className="w-full bg-card border border-input px-3 py-2.5 text-sm rounded-md shadow-sm focus:ring-primary focus:border-primary transition-all"
               rows={2}
             />
           </div>
@@ -230,7 +246,7 @@ function EditProcedure() {
                 type="date"
                 value={effectiveDate}
                 onChange={(e) => setEffectiveDate(e.target.value)}
-                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+                className="w-full bg-card border border-input px-3 py-2.5 text-sm rounded-md shadow-sm focus:ring-primary focus:border-primary transition-all"
               />
             </div>
             <div>
@@ -239,7 +255,7 @@ function EditProcedure() {
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+                className="w-full bg-card border border-input px-3 py-2.5 text-sm rounded-md shadow-sm focus:ring-primary focus:border-primary transition-all"
               />
             </div>
           </div>
@@ -248,7 +264,7 @@ function EditProcedure() {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm font-mono"
+              className="w-full bg-card border border-input px-4 py-3 text-sm rounded-md shadow-sm font-mono leading-relaxed focus:ring-primary focus:border-primary transition-all"
               rows={12}
             />
           </div>
@@ -259,7 +275,7 @@ function EditProcedure() {
                 type="checkbox"
                 checked={ackRequired}
                 onChange={(e) => setAckRequired(e.target.checked)}
-                className="rounded border-input text-primary focus:ring-primary"
+                className="rounded border-input text-primary focus:ring-primary h-4 w-4 transition-all"
               />
               <span className="text-sm font-medium">Require staff acknowledgment</span>
             </label>
