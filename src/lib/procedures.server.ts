@@ -1,4 +1,4 @@
-﻿import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -148,7 +148,7 @@ export async function acknowledgeProcedureCore(dataRaw: any, token: string) {
   await verifyOrgRole(
     client,
     data.organizationId,
-    ["owner", "admin", "manager", "staff", "viewer"],
+    ["owner", "admin", "manager", "staff"],
     user.id,
   );
 

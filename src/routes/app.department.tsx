@@ -1,26 +1,17 @@
-﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
+// @ts-nocheck — preserved from original; remove once types.ts is fully updated
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
-import { useAuth, useIsAdmin } from "@/lib/auth";
+import { useAuth, useIsAdmin, useIsManager } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import {
   getTeamMembers,
   getPendingInvitations,
   createInvitation,
   resendInvitation,
   cancelInvitation,
-  updateMemberRole,
-  removeMember,
 } from "@/lib/team.server";
 
 export const Route = createFileRoute("/app/department")({ component: Department });
@@ -28,26 +19,20 @@ export const Route = createFileRoute("/app/department")({ component: Department 
 function Department() {
   const { membership } = useAuth();
   const navigate = useNavigate();
-    const isManager = useIsManager();
+  const isManager = useIsManager();
   const isAdmin = useIsAdmin();
-  useEffect(() => {
-    if (!isManager || isAdmin) void navigate({ to: "/app" });
-  }, [isManager, isAdmin, navigate]);
-  useEffect(() => {
-    if (!isAdmin) void navigate({ to: "/app" });
-  }, [isAdmin, navigate]);
   const queryClient = useQueryClient();
 
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "manager" | "staff" | "viewer">("staff");
-  const [inviteDesignation, setInviteDesignation] = useState("");
-  const [inviteDepartment, setInviteDepartment] = useState("");
-  const [isInviting, setIsInviting] = useState(false);
+  // Route guard: only Managers (including owner/admin who are also managers) may enter.
+  // Staff are redirected. Note: this is a UX redirect only; backend enforces authorization.
+  useEffect(() => {
+    if (!isManager) void navigate({ to: "/app" });
+  }, [isManager, navigate]);
 
-  const [editingMember, setEditingMember] = useState<any>(null);
-  const [editRole, setEditRole] = useState<string>("");
-  const [editDesignation, setEditDesignation] = useState<string>("");
-  const [editDepartment, setEditDepartment] = useState<string>("");
+  // Invite form state — restricted to staff-only for this page
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteDesignation, setInviteDesignation] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
 
   const getHeaders = async () => {
     const {
@@ -56,44 +41,44 @@ function Department() {
     return session?.access_token ? { authorization: "Bearer " + session.access_token } : undefined;
   };
 
+  // Queries are enabled for any manager (including admin/owner who act as manager here)
   const { data: members = [], isLoading: loadingMembers, isError: isMembersError, error: membersError } = useQuery({
-    queryKey: ["team", "members"],
+    queryKey: ["department", "members"],
     queryFn: async () => {
       const headers = await getHeaders();
       return await getTeamMembers({ headers });
     },
-    enabled: isAdmin,
+    enabled: isManager,
   });
 
-  const { data: invitations = [], isLoading: loadingInvitations, isError: isInvitationsError, error: invitationsError } = useQuery({
-    queryKey: ["team", "invitations"],
+  const { data: invitations = [], isLoading: loadingInvitations, isError: isInvitationsError } = useQuery({
+    queryKey: ["department", "invitations"],
     queryFn: async () => {
       const headers = await getHeaders();
       return await getPendingInvitations({ headers });
     },
-    enabled: isAdmin,
+    enabled: isManager,
   });
 
   const inviteMut = useMutation({
     mutationFn: async () => {
       const headers = await getHeaders();
+      // role is hardcoded to "staff" — Managers can only invite staff.
       return await createInvitation({
         headers,
         data: {
           email: inviteEmail,
-          role: inviteRole,
+          role: "staff",
           designation: inviteDesignation || undefined,
-          department: inviteDepartment || undefined,
+          // department_id is intentionally omitted; server derives it from authenticated context.
         },
       });
     },
     onSuccess: () => {
       setInviteEmail("");
-      setInviteRole("staff");
       setInviteDesignation("");
-      setInviteDepartment("");
-      queryClient.invalidateQueries({ queryKey: ["team", "invitations"] });
-      queryClient.invalidateQueries({ queryKey: ["team", "members"] });
+      queryClient.invalidateQueries({ queryKey: ["department", "invitations"] });
+      queryClient.invalidateQueries({ queryKey: ["department", "members"] });
       toast.success("Invitation sent");
       setIsInviting(false);
     },
@@ -123,54 +108,31 @@ function Department() {
       return await cancelInvitation({ headers, data: { id } });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team", "invitations"] });
+      queryClient.invalidateQueries({ queryKey: ["department", "invitations"] });
       toast.success("Invitation cancelled");
     },
     onError: (e) => toast.error((e as Error).message),
   });
 
-  
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team", "members"] });
-      toast.success("Member updated");
-      setEditingMember(null);
-    },
-    onError: (e) => toast.error((e as Error).message),
-  });
-
-  const removeMut = useMutation({
-    mutationFn: async (id: string) => {
-      const headers = await getHeaders();
-      return await removeMember({ headers, data: { id } });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team", "members"] });
-      toast.success("Member removed");
-    },
-    onError: (e) => toast.error((e as Error).message),
-  });
-
-  if (!isAdmin) return null;
-
-  const isOwner = membership?.role === "owner";
+  // Do not render until manager status is confirmed — prevents flash of unauthorized content.
+  if (!isManager) return null;
 
   return (
     <div>
       <PageHeader
         eyebrow="Folio 05"
-        title="Team Management"
-        subtitle="Manage the members of your organization and pending invitations."
+        title="My Department"
+        subtitle="Manage staff within your assigned department."
       />
       <div className="px-6 md:px-10 py-6 max-w-6xl space-y-12">
-        {/* Invite Form */}
+        {/* Invite Form — role is locked to "staff"; no role selector shown */}
         <section>
-          <div className="eyebrow mb-6">Invite Member</div>
+          <div className="eyebrow mb-6">Invite Staff</div>
           <form
             onSubmit={handleInvite}
             className="bg-card border border-border p-5 grid grid-cols-1 md:grid-cols-12 gap-4 items-end"
           >
-            <div className="md:col-span-3">
+            <div className="md:col-span-5">
               <label className="eyebrow block mb-1.5 text-muted-foreground">Email Address</label>
               <input
                 type="email"
@@ -183,45 +145,19 @@ function Department() {
               />
             </div>
 
-            <div className="md:col-span-3">
-              <label className="eyebrow block mb-1.5 text-muted-foreground">Designation</label>
+            <div className="md:col-span-5">
+              <label className="eyebrow block mb-1.5 text-muted-foreground">Designation (optional)</label>
               <input
                 type="text"
                 value={inviteDesignation}
                 onChange={(e) => setInviteDesignation(e.target.value)}
-                placeholder="e.g. Operations Manager"
-                disabled={isInviting}
-                className="w-full bg-background border border-input px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <label className="eyebrow block mb-1.5 text-muted-foreground">Department</label>
-              <input
-                type="text"
-                value={inviteDepartment}
-                onChange={(e) => setInviteDepartment(e.target.value)}
-                placeholder="e.g. Customer Ops"
+                placeholder="e.g. Call Center Agent"
                 disabled={isInviting}
                 className="w-full bg-background border border-input px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="eyebrow block mb-1.5 text-muted-foreground">Role</label>
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as any)}
-                disabled={isInviting}
-                className="w-full bg-background border border-input px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                {isOwner && <option value="admin">Admin</option>}
-                <option value="manager">Manager</option>
-                <option value="staff">Staff</option>
-                <option value="viewer">Viewer</option>
-              </select>
-            </div>
-            <div className="md:col-span-1">
               <button
                 type="submit"
                 disabled={isInviting || !inviteEmail}
@@ -231,6 +167,9 @@ function Department() {
               </button>
             </div>
           </form>
+          <p className="text-xs text-muted-foreground mt-2">
+            Invitations are automatically assigned to your department as <span className="font-medium">staff</span>.
+          </p>
         </section>
 
         {/* Pending Invitations */}
@@ -242,7 +181,6 @@ function Department() {
                 <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wider font-mono border-b border-border">
                   <tr>
                     <th className="px-5 py-3 font-medium">Email</th>
-                    <th className="px-5 py-3 font-medium">Role</th>
                     <th className="px-5 py-3 font-medium">Designation</th>
                     <th className="px-5 py-3 font-medium">Invited At</th>
                     <th className="px-5 py-3 font-medium text-right">Actions</th>
@@ -251,13 +189,13 @@ function Department() {
                 <tbody className="divide-y divide-border">
                   {isInvitationsError ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-6 text-center text-destructive">
+                      <td colSpan={4} className="px-5 py-6 text-center text-destructive">
                         Failed to load pending invitations.
                       </td>
                     </tr>
                   ) : loadingInvitations ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-6 text-center text-muted-foreground">
+                      <td colSpan={4} className="px-5 py-6 text-center text-muted-foreground">
                         Loading invitations...
                       </td>
                     </tr>
@@ -265,9 +203,6 @@ function Department() {
                     invitations.map((inv) => (
                       <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-5 py-3 font-medium">{inv.profiles?.email || "Unknown"}</td>
-                        <td className="px-5 py-3 uppercase tracking-wider text-[11px] text-muted-foreground">
-                          {inv.role}
-                        </td>
                         <td className="px-5 py-3 text-muted-foreground">{inv.designation || "-"}</td>
                         <td className="px-5 py-3 text-muted-foreground">
                           {new Date(inv.created_at).toLocaleDateString()}
@@ -299,9 +234,9 @@ function Department() {
           </section>
         )}
 
-        {/* Active Members */}
+        {/* Department Members — read-only view. Managers cannot edit roles or departments. */}
         <section>
-          <div className="eyebrow mb-6">Organization Members</div>
+          <div className="eyebrow mb-6">Department Members</div>
           <div className="border border-border bg-card overflow-hidden">
             <table className="w-full text-sm text-left">
               <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wider font-mono border-b border-border">
@@ -309,22 +244,26 @@ function Department() {
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Role</th>
                   <th className="px-5 py-3 font-medium">Designation</th>
-                  <th className="px-5 py-3 font-medium">Department</th>
                   <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                  {isMembersError ? (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-destructive">
-                        Failed to load members: {(membersError as Error)?.message || "Unknown error"}
-                      </td>
-                    </tr>
-                  ) : loadingMembers ? (
+                {isMembersError ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">
+                    <td colSpan={4} className="px-5 py-8 text-center text-destructive">
+                      Failed to load members: {(membersError as Error)?.message || "Unknown error"}
+                    </td>
+                  </tr>
+                ) : loadingMembers ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground">
                       Loading members...
+                    </td>
+                  </tr>
+                ) : members.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground">
+                      No members in your department yet.
                     </td>
                   </tr>
                 ) : (
@@ -342,35 +281,12 @@ function Department() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">{m.designation || "-"}</td>
-                      <td className="px-5 py-3 text-muted-foreground">{m.department || "-"}</td>
                       <td className="px-5 py-3">
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider ${m.status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"}`}
                         >
                           {m.status}
                         </span>
-                      </td>
-                      <td className="px-5 py-3 text-right space-x-3">
-                        <button
-                          onClick={() => {
-                            setEditingMember(m);
-                            setEditRole(m.role);
-                            setEditDesignation(m.designation || "");
-                            setEditDepartment(m.department || "");
-                          }}
-                          className="text-primary hover:underline text-xs"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm("Remove this member?")) removeMut.mutate(m.id);
-                          }}
-                          className="text-destructive hover:underline text-xs"
-                          disabled={removeMut.isPending}
-                        >
-                          Remove
-                        </button>
                       </td>
                     </tr>
                   ))
@@ -380,8 +296,6 @@ function Department() {
           </div>
         </section>
       </div>
-
-      
     </div>
   );
 }

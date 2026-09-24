@@ -1,4 +1,4 @@
-﻿import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth, useIsAdmin, useIsManager } from "@/lib/auth";
 
 const links = [
@@ -9,12 +9,14 @@ const links = [
 
 const managerLinks = [
   { to: "/app/import", label: "Import", num: "04" },
+  { to: "/app/department", label: "My Department", num: "05" },
+  { to: "/app/compliance", label: "Compliance", num: "06" },
 ] as const;
 
 const adminLinks = [
+  { to: "/app/import", label: "Import", num: "04" },
   { to: "/app/team", label: "Team", num: "05" },
-  { to: "/app/analytics", label: "Analytics", num: "06" },
-  { to: "/app/settings", label: "Settings", num: "07" },
+  { to: "/app/settings", label: "Settings", num: "06" },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {

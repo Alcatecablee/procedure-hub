@@ -1,4 +1,4 @@
-﻿import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database, MemberRole, MemberStatus } from "@/integrations/supabase/types";
@@ -52,8 +52,8 @@ function enforceAdmin(role: MemberRole) {
 }
 
 function enforceAdminOrManager(role: MemberRole) {
-  if (role !== "owner" && role !== "admin") {
-    throw new Error("Forbidden: requires owner or admin role");
+  if (role !== "owner" && role !== "admin" && role !== "manager") {
+    throw new Error("Forbidden: requires owner, admin, or manager role");
   }
 }
 
@@ -158,9 +158,11 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
 
 const InviteInput = z.object({
   email: z.string().email(),
-  role: z.enum(["admin", "manager", "staff", "viewer"]), // Owner cannot be invited directly
+  // Owner cannot be invited directly. viewer is not a canonical role.
+  role: z.enum(["admin", "manager", "staff"]),
   designation: z.string().optional(),
-  department_id: z.string().optional(),
+  // Client may submit department_id for Admin flows; ignored/rejected for Managers below.
+  department_id: z.string().uuid().optional(),
 });
 
 export const createInvitation = createServerFn({ method: "POST" }).handler(async (req) => {
@@ -170,22 +172,31 @@ export const createInvitation = createServerFn({ method: "POST" }).handler(async
   const ctx = await getCallerContext(token);
   enforceAdminOrManager(ctx.role);
 
-  let targetRole = data.role;
-  let targetDepartment = data.department_id || null;
+  let targetRole: MemberRole;
+  let targetDepartment: string | null;
 
   if (ctx.role === "manager") {
-    if (data.role !== "staff" && data.role !== "viewer") {
-      throw new Error("Managers can only invite staff members.");
+    // Managers are strictly restricted to inviting staff into their own department.
+    if (data.role !== "staff") {
+      throw new Error("Forbidden: Managers can only invite staff members.");
     }
     if (!ctx.departmentId) {
-       throw new Error("Manager must belong to a department to invite staff.");
+      throw new Error("Forbidden: Manager must be assigned to a department to invite staff.");
     }
+    // Reject if client tried to supply a different department_id.
+    if (data.department_id && data.department_id !== ctx.departmentId) {
+      throw new Error("Forbidden: Managers cannot invite into a department other than their own.");
+    }
+    // Organization and department are derived exclusively from server context.
+    targetRole = "staff";
     targetDepartment = ctx.departmentId;
-    targetRole = data.role;
   } else {
+    // Admin/Owner path.
     if (data.role === "admin" && ctx.role !== "owner") {
-      throw new Error("Only owners can assign the admin role.");
+      throw new Error("Forbidden: Only owners can assign the admin role.");
     }
+    targetRole = data.role as MemberRole;
+    targetDepartment = data.department_id || null;
   }
 
   const svc = getServiceClient();
@@ -222,13 +233,14 @@ export const createInvitation = createServerFn({ method: "POST" }).handler(async
     targetUserId = inviteData.user.id;
   }
 
-  // 2. Insert into organization_members
+  // 2. Insert using ONLY server-authoritative values.
+  // organization_id and department_id are NEVER taken from the client request.
   const { error: insertError } = await svc.from("organization_members").insert({
-    organization_id: ctx.orgId,
+    organization_id: ctx.orgId,       // server-derived
     user_id: targetUserId,
-    role: data.role as MemberRole,
+    role: targetRole,                 // server-validated
     designation: data.designation || null,
-    department_id: data.department || null,
+    department_id: targetDepartment,  // server-derived (ctx.departmentId for managers)
     status: "invited",
     invited_by: ctx.user.id,
     joined_at: null,
@@ -245,11 +257,13 @@ export const createInvitation = createServerFn({ method: "POST" }).handler(async
     event_type: "member_invited",
     entity_type: "organization_members",
     entity_id: targetUserId,
-    metadata: { email, role: data.role } as any,
+    metadata: { email, role: targetRole, department_id: targetDepartment } as any,
   });
 
   return { success: true };
 });
+
+
 
 const IdInput = z.object({ id: z.string().uuid() });
 
@@ -258,20 +272,27 @@ export const resendInvitation = createServerFn({ method: "POST" }).handler(async
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
   const ctx = await getCallerContext(token);
-  enforceAdmin(ctx.role);
+  enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
 
   // Verify it is an invitation belonging to this org
   const { data: member } = await svc
     .from("organization_members")
-    .select("status, user_id")
+    .select("status, user_id, department_id, invited_by")
     .eq("id", data.id)
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   if (!member) throw new Error("Invitation not found");
   if (member.status !== "invited") throw new Error("Cannot resend an active or removed membership");
+
+  // Managers can only resend invitations within their own department.
+  if (ctx.role === "manager") {
+    if (!ctx.departmentId || member.department_id !== ctx.departmentId) {
+      throw new Error("Forbidden: Managers can only manage invitations within their own department.");
+    }
+  }
 
   const { data: profile } = await svc
     .from("profiles")
@@ -303,20 +324,27 @@ export const cancelInvitation = createServerFn({ method: "POST" }).handler(async
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
   const ctx = await getCallerContext(token);
-  enforceAdmin(ctx.role);
+  enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
 
   // Verify it is an invitation belonging to this org
   const { data: member } = await svc
     .from("organization_members")
-    .select("status, user_id")
+    .select("status, user_id, department_id")
     .eq("id", data.id)
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   if (!member) throw new Error("Invitation not found");
   if (member.status !== "invited") throw new Error("Cannot cancel an active or removed membership");
+
+  // Managers can only cancel invitations within their own department.
+  if (ctx.role === "manager") {
+    if (!ctx.departmentId || member.department_id !== ctx.departmentId) {
+      throw new Error("Forbidden: Managers can only manage invitations within their own department.");
+    }
+  }
 
   // Physically delete the row so it's fully cancelled and can't be accepted
   const { error } = await svc
@@ -341,9 +369,11 @@ export const cancelInvitation = createServerFn({ method: "POST" }).handler(async
 
 const MemberUpdateInput = z.object({
   memberId: z.string().uuid(),
-  role: z.enum(["owner", "admin", "manager", "staff", "viewer"]).optional(),
+  // viewer is not a canonical role.
+  role: z.enum(["owner", "admin", "manager", "staff"]).optional(),
   designation: z.string().nullable().optional(),
-  department_id: z.string().nullable().optional(),
+  // Only Admin/Owner can reassign departments; validated by enforceAdmin guard above.
+  department_id: z.string().uuid().nullable().optional(),
 });
 
 export const updateMemberRole = createServerFn({ method: "POST" }).handler(async (req) => {
@@ -351,6 +381,7 @@ export const updateMemberRole = createServerFn({ method: "POST" }).handler(async
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
   const ctx = await getCallerContext(token);
+  // Managers must NOT be able to update roles or department_id for any member.
   enforceAdmin(ctx.role);
 
   // Prevent assigning owner unless caller is owner
@@ -380,7 +411,6 @@ export const updateMemberRole = createServerFn({ method: "POST" }).handler(async
   }
 
   // Self-demotion protection for final owner
-  // and Final owner protection generally
   if (target.role === "owner" && data.role && data.role !== "owner") {
     const { count } = await svc
       .from("organization_members")
@@ -397,7 +427,8 @@ export const updateMemberRole = createServerFn({ method: "POST" }).handler(async
   const updates: any = {};
   if (data.role) updates.role = data.role as MemberRole;
   if (data.designation !== undefined) updates.designation = data.designation;
-  if (data.department !== undefined) updates.department = data.department;
+  // FIX-3: was incorrectly referencing data.department (removed column); now uses data.department_id.
+  if (data.department_id !== undefined) updates.department_id = data.department_id;
 
   const { error } = await svc
     .from("organization_members")

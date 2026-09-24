@@ -35,7 +35,7 @@ function Team() {
   const queryClient = useQueryClient();
 
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "manager" | "staff" | "viewer">("staff");
+  const [inviteRole, setInviteRole] = useState<"admin" | "manager" | "staff">("staff");
   const [inviteDesignation, setInviteDesignation] = useState("");
   const [inviteDepartment, setInviteDepartment] = useState("");
   const [isInviting, setIsInviting] = useState(false);
@@ -222,7 +222,6 @@ function Team() {
                 {isOwner && <option value="admin">Admin</option>}
                 <option value="manager">Manager</option>
                 <option value="staff">Staff</option>
-                <option value="viewer">Viewer</option>
               </select>
             </div>
             <div className="md:col-span-1">
@@ -404,7 +403,6 @@ function Team() {
                 {isOwner && <option value="admin">Admin</option>}
                 <option value="manager">Manager</option>
                 <option value="staff">Staff</option>
-                <option value="viewer">Viewer</option>
               </select>
               {editingMember?.role === "owner" && !isOwner && (
                 <p className="text-[11px] text-muted-foreground mt-1">
