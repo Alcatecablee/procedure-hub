@@ -4,11 +4,11 @@ import { motion } from "framer-motion";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Procedure Hub - Operational clarity from chat to record" },
+      { title: "Procedure Hub - Capture. Codify. Acknowledge." },
       {
         name: "description",
         content:
-          "Centralize operational procedures, updates, and expectations from Teams, Slack, and WhatsApp into one searchable source of truth.",
+          "Give teams one consistent answer, and give auditors their evidence automatically by turning chaotic Teams chats into a governed operational ledger.",
       },
     ],
   }),
@@ -43,9 +43,9 @@ function Landing() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="border-b border-border relative z-10 sticky top-0 bg-background/80 backdrop-blur-md"
+        className="border-b border-border relative z-10 sticky top-0 bg-background"
       >
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+        <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-2">
             <div className="h-4 w-4 bg-primary rounded-sm" />
             <span className="font-display font-medium tracking-tight">Procedure Hub</span>
@@ -72,28 +72,26 @@ function Landing() {
 
       {/* Hero - editorial */}
       <section className="border-b border-border bg-background">
-        <div className="mx-auto max-w-6xl px-6 pt-8 pb-20 md:pt-10 md:pb-28 grid md:grid-cols-12 gap-12 items-end">
+        <div className="mx-auto max-w-6xl px-6 pt-16 pb-20 md:pt-24 md:pb-32 flex flex-col items-center text-center">
           <motion.div
-            className="md:col-span-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col items-center max-w-4xl"
           >
-            <h1 className="font-display text-6xl md:text-[5.5rem] leading-[1.02] tracking-tight text-foreground">
-              Turn buried chat instructions
-              <span className="block italic text-ink-soft mt-1">into operational clarity.</span>
+            <h1 className="font-display text-5xl md:text-7xl leading-[1.05] tracking-tight text-foreground">
+              Same question, different answer
+              <span className="block italic text-ink-soft mt-2">depending on who you ask.</span>
             </h1>
 
             <p className="mt-8 max-w-2xl text-lg md:text-xl leading-relaxed text-ink-soft">
-              Procedure Hub gathers the operational procedures, rule changes, and expectations that
-              scatter across Microsoft Teams, Slack, and WhatsApp - and binds them into a single,
-              searchable, acknowledged record.
+              Procedure Hub gathers the operational workarounds that scatter across Teams, and binds them into a single, searchable, acknowledged record. Give staff one consistent answer, and give compliance teams their audit evidence automatically.
             </p>
 
-            <div className="mt-12 flex items-center gap-8">
+            <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 justify-center">
               <Link
                 to="/login"
-                className="inline-flex h-12 items-center justify-center bg-primary px-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex h-12 items-center justify-center bg-primary px-8 text-[15px] font-medium text-primary-foreground transition-all hover:bg-primary/90 rounded-lg hover:scale-[1.02] hover:shadow-md shadow-sm w-full sm:w-auto"
               >
                 Open the record
                 <span className="ml-2" aria-hidden>
@@ -102,7 +100,7 @@ function Landing() {
               </Link>
               <a
                 href="#system"
-                className="text-sm font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors underline decoration-border underline-offset-4"
+                className="inline-flex h-12 items-center justify-center px-6 text-sm font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded-lg transition-colors w-full sm:w-auto"
               >
                 How it works
               </a>
@@ -110,19 +108,18 @@ function Landing() {
           </motion.div>
 
           <motion.aside
-            className="md:col-span-4 border-l border-border pl-8 md:pl-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.2 }}
+            className="mt-16 w-full max-w-3xl bg-card border border-border rounded-2xl shadow-sm p-8 md:p-12 flex flex-col items-center text-center"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.3 }}
           >
-            <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground mb-4">
+            <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground mb-6">
               From the field
             </div>
-            <blockquote className="font-display text-lg italic leading-snug text-ink-soft">
-              &ldquo;The escalation rule was posted once, in March. By June nobody could find it.
-              Half the team had a different version of the truth.&rdquo;
+            <blockquote className="font-display text-xl md:text-2xl italic leading-snug text-ink-soft max-w-2xl">
+              &ldquo;When a crisis hits, half the team works around it because nobody remembers the official rule. The real manual isn't in a wiki; it's buried in a Teams chat.&rdquo;
             </blockquote>
-            <div className="mt-6 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+            <div className="mt-8 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
               - Operations lead, hybrid support team
             </div>
           </motion.aside>
@@ -146,18 +143,19 @@ function Landing() {
               whileInView="whileInView"
               viewport={{ once: true, margin: "-50px" }}
             >
-              <ul className="divide-y divide-border border-y border-border">
+              <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+              <ul className="divide-y divide-border">
                 {[
                   ["Important messages get buried under thousands of replies.", "Drift"],
-                  ["Staff forget procedures and ask the same questions weekly.", "Repetition"],
-                  ["Managers repeat reminders daily across channels.", "Fatigue"],
+                  ["Staff rely on memory, leading to inconsistent answers internally.", "Confusion"],
+                  ["Audit evidence is pulled manually from a dozen systems.", "The Dread"],
                   ["No one knows who has read what - accountability disappears.", "Opacity"],
-                  ["Operational expectations shift quietly, without a record.", "Inconsistency"],
+                  ["Operational workarounds shift quietly, without a record.", "Inconsistency"],
                 ].map(([line, tag]) => (
                   <motion.li
                     key={line}
                     variants={STAGGER_ITEM}
-                    className="ledger-row py-5 grid grid-cols-12 gap-4 items-baseline hover:bg-muted/10 transition-colors"
+                    className="ledger-row py-5 px-6 grid grid-cols-12 gap-4 items-baseline hover:bg-muted/40 transition-colors"
                   >
                     <span className="col-span-12 sm:col-span-3 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                       {tag}
@@ -168,6 +166,7 @@ function Landing() {
                   </motion.li>
                 ))}
               </ul>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -184,7 +183,7 @@ function Landing() {
           </motion.div>
 
           <motion.div
-            className="grid md:grid-cols-3 gap-px bg-border border border-border rounded-sm overflow-hidden"
+            className="grid md:grid-cols-3 gap-6"
             variants={STAGGER_CONTAINER}
             initial="initial"
             whileInView="whileInView"
@@ -210,7 +209,7 @@ function Landing() {
               <motion.article
                 key={s.n}
                 variants={STAGGER_ITEM}
-                className="bg-card p-10 hover:bg-muted/10 transition-colors"
+                className="bg-card border border-border rounded-xl shadow-sm p-8 md:p-10 hover:bg-muted/40 transition-colors"
               >
                 <div className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground mb-8">
                   {s.n}
@@ -262,7 +261,7 @@ function Landing() {
           <div className="mt-12 flex items-center justify-center gap-6">
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 text-sm font-medium rounded-sm hover:bg-primary/90 transition-all hover:scale-[1.02] hover:shadow-md"
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 text-sm font-medium rounded-lg hover:bg-primary/90 transition-all hover:scale-[1.02] hover:shadow-md"
             >
               Create your workspace
               <span aria-hidden>&rarr;</span>
