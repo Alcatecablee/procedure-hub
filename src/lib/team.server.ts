@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database, MemberRole, MemberStatus } from "@/integrations/supabase/types";
 import { z } from "zod";
 
-function getServiceClient() {
+export function getServiceClient() {
   const url = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
@@ -25,7 +25,7 @@ function getUserClient(token: string) {
   });
 }
 
-async function getCallerContext(token: string) {
+export async function getCallerContext(token: string) {
   const userClient = getUserClient(token);
   const {
     data: { user },

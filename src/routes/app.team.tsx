@@ -157,7 +157,7 @@ function Team() {
 
   if (!isAdmin) return null;
 
-  const isOwner = membership?.role === "owner";
+  const isOwner = org?.role === "owner";
 
   return (
     <div>
