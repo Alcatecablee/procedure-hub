@@ -71,7 +71,7 @@ function ImportPage() {
     }
   };
 
-  if (!isAdmin) return null;
+  if (!isManager) return null;
   return (
     <div>
       <PageHeader
