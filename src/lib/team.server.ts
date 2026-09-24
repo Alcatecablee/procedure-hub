@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database, MemberRole, MemberStatus } from "@/integrations/supabase/types";
@@ -34,7 +34,7 @@ async function getCallerContext(token: string) {
 
   const { data: membership } = await userClient
     .from("organization_members")
-    .select("organization_id, role, status")
+    .select("organization_id, role, status, department_id")
     .eq("user_id", user.id)
     .eq("status", "active")
     .limit(1)
@@ -42,16 +42,22 @@ async function getCallerContext(token: string) {
 
   if (!membership) throw new Error("No active organization membership");
 
-  return { user, orgId: membership.organization_id, role: membership.role as MemberRole };
+  return { user, orgId: membership.organization_id, role: membership.role as MemberRole, departmentId: membership.department_id };
 }
 
 function enforceAdmin(role: MemberRole) {
+  if (role !== 'owner' && role !== 'admin') {
+    throw new Error("Forbidden: requires owner or admin role");
+  }
+}
+
+function enforceAdminOrManager(role: MemberRole) {
   if (role !== "owner" && role !== "admin") {
     throw new Error("Forbidden: requires owner or admin role");
   }
 }
 
-// ─── READ OPERATIONS ──────────────────────────────────────────
+// â”€â”€â”€ READ OPERATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const getTeamMembers = createServerFn({ method: "GET" }).handler(async () => {
   console.log("==> getTeamMembers called");
@@ -62,7 +68,7 @@ export const getTeamMembers = createServerFn({ method: "GET" }).handler(async ()
   }
   const ctx = await getCallerContext(token);
   console.log("==> getTeamMembers ctx:", ctx);
-  enforceAdmin(ctx.role);
+  enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
   const { data: members, error } = await svc
@@ -73,7 +79,7 @@ export const getTeamMembers = createServerFn({ method: "GET" }).handler(async ()
       user_id,
       role,
       designation,
-      department,
+      department_id,
       status,
       joined_at
     `,
@@ -105,7 +111,7 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) return [];
   const ctx = await getCallerContext(token);
-  enforceAdmin(ctx.role);
+  enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
   const { data: members, error } = await svc
@@ -116,7 +122,7 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
       user_id,
       role,
       designation,
-      department,
+      department_id,
       status,
       created_at,
       invited_by
@@ -142,13 +148,13 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
   }));
 });
 
-// ─── MUTATIONS ───────────────────────────────────────────────
+// â”€â”€â”€ MUTATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const InviteInput = z.object({
   email: z.string().email(),
   role: z.enum(["admin", "manager", "staff", "viewer"]), // Owner cannot be invited directly
   designation: z.string().optional(),
-  department: z.string().optional(),
+  department_id: z.string().optional(),
 });
 
 export const createInvitation = createServerFn({ method: "POST" }).handler(async (req) => {
@@ -156,11 +162,24 @@ export const createInvitation = createServerFn({ method: "POST" }).handler(async
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
   const ctx = await getCallerContext(token);
-  enforceAdmin(ctx.role);
+  enforceAdminOrManager(ctx.role);
 
-  // Enforce governance: Only owners can create admins
-  if (data.role === "admin" && ctx.role !== "owner") {
-    throw new Error("Only owners can assign the admin role.");
+  let targetRole = data.role;
+  let targetDepartment = data.department_id || null;
+
+  if (ctx.role === "manager") {
+    if (data.role !== "staff" && data.role !== "viewer") {
+      throw new Error("Managers can only invite staff members.");
+    }
+    if (!ctx.departmentId) {
+       throw new Error("Manager must belong to a department to invite staff.");
+    }
+    targetDepartment = ctx.departmentId;
+    targetRole = data.role;
+  } else {
+    if (data.role === "admin" && ctx.role !== "owner") {
+      throw new Error("Only owners can assign the admin role.");
+    }
   }
 
   const svc = getServiceClient();
@@ -203,7 +222,7 @@ export const createInvitation = createServerFn({ method: "POST" }).handler(async
     user_id: targetUserId,
     role: data.role as MemberRole,
     designation: data.designation || null,
-    department: data.department || null,
+    department_id: data.department || null,
     status: "invited",
     invited_by: ctx.user.id,
     joined_at: null,
@@ -318,7 +337,7 @@ const MemberUpdateInput = z.object({
   memberId: z.string().uuid(),
   role: z.enum(["owner", "admin", "manager", "staff", "viewer"]).optional(),
   designation: z.string().nullable().optional(),
-  department: z.string().nullable().optional(),
+  department_id: z.string().nullable().optional(),
 });
 
 export const updateMemberRole = createServerFn({ method: "POST" }).handler(async (req) => {
