@@ -133,12 +133,12 @@ function Dashboard() {
         }
       />
 
-      <div className="px-6 md:px-10 pb-12 max-w-6xl">
+      <div className="px-6 md:px-10 pt-8 md:pt-10 pb-12 max-w-6xl">
         {/* Stat ledger */}
-        <section className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border border border-border mb-10">
+        <section className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
           <Stat label="Active" value={stats.active} />
           <Stat label="Critical" value={stats.critical} tone="critical" />
-          <Stat label="Updated · 14d" value={stats.recentlyUpdated} />
+          <Stat label="Updated Â· 14d" value={stats.recentlyUpdated} />
           <Stat
             label="To acknowledge"
             value={stats.unacknowledged}
@@ -147,7 +147,7 @@ function Dashboard() {
           <Stat label="Your compliance" value={`${stats.compliance}%`} />
         </section>
 
-        <div className="grid lg:grid-cols-2 gap-10">
+        <div className="grid lg:grid-cols-2 gap-8">
           <Section
             title="Requires your acknowledgment"
             eyebrow="Section A"
@@ -176,8 +176,8 @@ function Stat({
   tone?: "critical" | "warn";
 }) {
   return (
-    <div className="bg-card p-5">
-      <div className="eyebrow mb-2 text-muted-foreground">{label}</div>
+    <div className="bg-card border border-border rounded-xl shadow-sm p-5 md:p-6 flex flex-col justify-between">
+      <div className="eyebrow mb-3 text-muted-foreground">{label}</div>
       <div
         className={`font-display text-4xl num ${
           tone === "critical"
@@ -205,39 +205,42 @@ function Section({
   rows: ProcedureRow[];
 }) {
   return (
-    <section>
-      <div className="flex items-baseline justify-between mb-4">
+    <section className="flex flex-col">
+      <div className="flex items-baseline justify-between mb-4 px-1">
         <h2 className="font-display text-lg">{title}</h2>
         <span className="eyebrow text-muted-foreground">{eyebrow}</span>
       </div>
-      {rows.length === 0 ? (
-        <div className="py-6 text-sm text-muted-foreground italic border-t border-border-strong">
-          {empty}
-        </div>
-      ) : (
-        <ul className="divide-y divide-border border-t border-border-strong">
-          {rows.map((p) => (
-            <li key={p.id}>
-              <Link
-                to="/app/procedures/$id"
-                params={{ id: p.id }}
-                className="py-3 flex flex-col gap-1.5 hover:bg-muted/30 transition-colors -mx-2 px-2 rounded-sm"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <span className="text-[15px] font-medium leading-snug">{p.title}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusBadge value={p.status} />
-                    <PriorityBadge value={p.priority} />
+      
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+        {rows.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground italic">
+            {empty}
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {rows.map((p) => (
+              <li key={p.id}>
+                <Link
+                  to="/app/procedures/$id"
+                  params={{ id: p.id }}
+                  className="p-4 flex flex-col gap-2 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-[15px] font-medium leading-snug">{p.title}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <StatusBadge value={p.status} />
+                      <PriorityBadge value={p.priority} />
+                    </div>
                   </div>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Updated {new Date(p.updated_at).toLocaleDateString()}
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+                  <div className="text-xs text-muted-foreground">
+                    Updated {new Date(p.updated_at).toLocaleDateString()}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

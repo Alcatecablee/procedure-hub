@@ -118,6 +118,7 @@ export type Procedure = {
   effective_date: string | null;
   expiry_date: string | null;
   acknowledgment_required: boolean;
+            department: string | null;
   source_type: SourcePlatform;
   source_reference: string | null;
   source_message_id: string | null;
@@ -143,6 +144,7 @@ export type ProcedureVersion = {
   effective_date: string | null;
   expiry_date: string | null;
   acknowledgment_required: boolean;
+            department: string | null;
   source_type: SourcePlatform | null;
   source_reference: string | null;
   change_summary: string | null;
@@ -376,6 +378,7 @@ export type Database = {
           effective_date: string | null;
           expiry_date: string | null;
           acknowledgment_required: boolean;
+            department: string | null;
           created_at: string;
           updated_at: string;
           rank: number;

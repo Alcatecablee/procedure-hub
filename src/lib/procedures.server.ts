@@ -60,7 +60,7 @@ export async function createProcedureCore(dataRaw: any, token: string) {
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
 
   if (data.effectiveDate && data.expiryDate) {
     if (new Date(data.effectiveDate) >= new Date(data.expiryDate)) {
@@ -79,6 +79,7 @@ export async function createProcedureCore(dataRaw: any, token: string) {
     _expiry_date: data.expiryDate || null,
     _ack_required: data.acknowledgmentRequired,
     _publish: data.publish,
+    _department: data.department,
   });
 
   if (error) throw new Error(error.message);
@@ -105,7 +106,7 @@ export async function updateProcedureCore(dataRaw: any, token: string) {
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
 
   if (data.effectiveDate && data.expiryDate) {
     if (new Date(data.effectiveDate) >= new Date(data.expiryDate)) {
@@ -125,6 +126,7 @@ export async function updateProcedureCore(dataRaw: any, token: string) {
     _expiry_date: data.expiryDate || null,
     _ack_required: data.acknowledgmentRequired,
     _publish: data.publish,
+    _department: data.department,
     _expected_version: data.expectedVersion,
   });
 
@@ -326,7 +328,7 @@ const ArchiveProcedureInput = z.object({
 export async function archiveProcedureCore(dataRaw: any, token: string) {
   const data = ArchiveProcedureInput.parse(dataRaw);
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
 
   const { error } = await client.rpc("atomic_archive_procedure", {
     _proc_id: data.id,
@@ -356,7 +358,7 @@ const ReplaceProcedureInput = z.object({
 export async function replaceProcedureCore(dataRaw: any, token: string) {
   const data = ReplaceProcedureInput.parse(dataRaw);
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
 
   const { error } = await client.rpc("atomic_replace_procedure", {
     _old_proc_id: data.oldProcedureId,
@@ -427,7 +429,7 @@ export const createCategory = createServerFn({ method: "POST" }).handler(async (
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
 
   const slug =
     data.slug ||
@@ -458,7 +460,7 @@ export const updateCategory = createServerFn({ method: "POST" }).handler(async (
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
 
   const slug =
     data.slug ||
@@ -491,7 +493,7 @@ export const deleteCategory = createServerFn({ method: "POST" }).handler(async (
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(client, data.organizationId, ["owner", "admin"], user.id);
+  await verifyOrgRole(client, data.organizationId, ["owner", "admin", "manager"], user.id);
 
   const { error } = await client
     .from("categories")

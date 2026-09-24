@@ -24,6 +24,7 @@ function EditProcedure() {
     "medium",
   );
   const [categoryId, setCategoryId] = useState("");
+  const [department, setDepartment] = useState("");
   const [ackRequired, setAckRequired] = useState(true);
   const [effectiveDate, setEffectiveDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
@@ -69,6 +70,7 @@ function EditProcedure() {
       setDescription(p.description || "");
       setPriority(p.priority);
       setCategoryId(p.category_id || "");
+      setDepartment(p.department || "");
       setAckRequired(p.acknowledgment_required);
       setExpectedVersion(p.version_number);
       setEffectiveDate(p.effective_date ? p.effective_date.split("T")[0] : "");
@@ -99,6 +101,7 @@ function EditProcedure() {
           description,
           priority,
           categoryId: categoryId || undefined,
+          department: department || undefined,
           effectiveDate: effectiveDate || undefined,
           expiryDate: expiryDate || undefined,
           acknowledgmentRequired: ackRequired,
@@ -198,7 +201,7 @@ function EditProcedure() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block eyebrow mb-2">Category</label>
               <select
@@ -239,7 +242,7 @@ function EditProcedure() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block eyebrow mb-2">Effective Date</label>
               <input

@@ -22,6 +22,7 @@ function NewProcedure() {
     "medium",
   );
   const [categoryId, setCategoryId] = useState("");
+  const [department, setDepartment] = useState("");
   const [ackRequired, setAckRequired] = useState(true);
   const [effectiveDate, setEffectiveDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
@@ -60,6 +61,7 @@ function NewProcedure() {
           description,
           priority,
           categoryId: categoryId || undefined,
+          department: department || undefined,
           effectiveDate: effectiveDate || undefined,
           expiryDate: expiryDate || undefined,
           acknowledgmentRequired: ackRequired,
@@ -150,7 +152,7 @@ function NewProcedure() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block eyebrow mb-2">Category</label>
               <select
@@ -170,6 +172,17 @@ function NewProcedure() {
                 ))}
               </select>
             </div>
+            
+            <div>
+              <label className="block eyebrow mb-2">Assigned Department</label>
+              <input
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                placeholder="e.g. Call Center (Optional)"
+                className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+              />
+            </div>
+
             <div>
               <label className="block eyebrow mb-2">Priority</label>
               <select

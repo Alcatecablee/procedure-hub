@@ -163,7 +163,7 @@ function ProcedureDetail() {
             <div className="flex gap-2">
               <button
                 onClick={() => void navigate({ to: `/app/procedures/${p.id}/edit` })}
-                className="bg-card text-foreground border border-input px-4 py-2 text-sm rounded-sm hover:bg-accent"
+                className="bg-card text-foreground border border-input px-4 py-2 text-sm rounded-md shadow-sm hover:bg-accent transition-all duration-200"
                 aria-label={`Edit procedure: ${p.title}`}
               >
                 Edit procedure
@@ -176,7 +176,7 @@ function ProcedureDetail() {
                     }
                   }}
                   disabled={archiveMutation.isPending}
-                  className="bg-card text-destructive border border-destructive/20 px-4 py-2 text-sm rounded-sm hover:bg-destructive/10 disabled:opacity-50"
+                  className="bg-card text-destructive border border-destructive/20 px-4 py-2 text-sm rounded-md shadow-sm hover:bg-destructive/10 disabled:opacity-50 transition-all duration-200"
                   aria-label={`Archive procedure: ${p.title}`}
                 >
                   Archive
@@ -187,7 +187,7 @@ function ProcedureDetail() {
         }
       />
 
-      <div className="px-6 md:px-10 py-6 max-w-4xl">
+      <div className="px-6 md:px-10 pt-8 md:pt-12 pb-16 max-w-4xl">
         <div className="flex gap-4 mb-8">
           <StatusBadge value={p.status} />
           <PriorityBadge value={p.priority} />
@@ -197,7 +197,7 @@ function ProcedureDetail() {
         </div>
 
         {isAdmin && p.status === "draft" && (
-          <div className="mb-8 p-6 border border-accent/50 bg-accent/20 rounded-sm flex items-start justify-between gap-6">
+          <div className="mb-8 p-8 border border-accent/50 bg-accent/10 rounded-xl shadow-sm flex items-start justify-between gap-6">
             <div>
               <h3 className="font-display font-medium mb-1">Draft Procedure</h3>
               <p className="text-sm text-foreground/80 max-w-xl">
@@ -216,7 +216,7 @@ function ProcedureDetail() {
                 }
               }}
               disabled={publishDraftMutation.isPending}
-              className="shrink-0 bg-primary text-primary-foreground px-5 py-2.5 text-sm rounded-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="shrink-0 bg-primary text-primary-foreground px-5 py-2.5 text-sm rounded-lg shadow-sm hover:bg-primary/90 transition-all hover:scale-[1.02] disabled:opacity-50"
               aria-label={`Publish draft procedure: ${p.title}`}
             >
               {publishDraftMutation.isPending ? "Publishing..." : "Publish to active registry"}
@@ -225,7 +225,7 @@ function ProcedureDetail() {
         )}
 
         {needsAck && (
-          <div className="mb-8 p-6 border border-priority-high/30 bg-priority-high/5 rounded-sm flex items-start justify-between gap-6">
+          <div className="mb-8 p-8 border border-priority-high/30 bg-priority-high/5 rounded-xl shadow-sm flex items-start justify-between gap-6">
             <div>
               <h3 className="font-display font-medium text-priority-high mb-1">
                 Acknowledgment Required
@@ -238,7 +238,7 @@ function ProcedureDetail() {
             <button
               onClick={() => ackMutation.mutate(currentVer.id)}
               disabled={ackMutation.isPending}
-              className="shrink-0 bg-priority-high text-white px-5 py-2.5 text-sm rounded-sm hover:bg-priority-high/90 transition-colors disabled:opacity-50"
+              className="shrink-0 bg-priority-high text-white px-5 py-2.5 text-sm rounded-lg shadow-sm hover:bg-priority-high/90 transition-all hover:scale-[1.02] disabled:opacity-50"
               aria-label={`Acknowledge procedure: ${p.title}`}
             >
               {ackMutation.isPending ? "Signing..." : "Acknowledge"}
@@ -247,7 +247,7 @@ function ProcedureDetail() {
         )}
 
         {isAcked && currentVer && (
-          <div className="mb-8 p-4 border border-border bg-card rounded-sm flex items-center gap-3">
+          <div className="mb-8 p-4 border border-border bg-card rounded-xl shadow-sm flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-priority-medium" />
             <p className="text-sm text-muted-foreground font-mono">
               You have acknowledged v{currentVer.version_number}.
@@ -255,15 +255,16 @@ function ProcedureDetail() {
           </div>
         )}
 
-        <div className="prose prose-sm dark:prose-invert max-w-none mb-16">
+        <div className="prose prose-base md:prose-lg prose-neutral dark:prose-invert max-w-none mb-16 prose-headings:font-display prose-headings:font-medium prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-strong:text-foreground">
           <div dangerouslySetInnerHTML={{ __html: marked.parse(p.description || "No content.") }} />
         </div>
 
-        <div className="border-t border-border-strong pt-8">
-          <h2 className="font-display text-lg mb-4">Version History</h2>
+        <div className="pt-10">
+          <h2 className="font-display text-lg mb-6">Version History</h2>
+          <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
           <ul className="divide-y divide-border">
             {versions.map((v: any) => (
-              <li key={v.id} className="py-3 flex justify-between items-center text-sm">
+              <li key={v.id} className="px-6 py-4 flex justify-between items-center text-sm hover:bg-muted/30 transition-colors">
                 <div>
                   <span className="font-medium mr-3">v{v.version_number}</span>
                   <span className="text-muted-foreground">
@@ -278,13 +279,15 @@ function ProcedureDetail() {
               </li>
             ))}
           </ul>
+          </div>
         </div>
-        <div className="border-t border-border-strong pt-8 mt-16">
-          <h2 className="font-display text-lg mb-4">Audit History</h2>
+        <div className="pt-10 mt-12 border-t border-border">
+          <h2 className="font-display text-lg mb-6">Audit History</h2>
           {logsData && logsData.length > 0 ? (
+            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
             <ul className="divide-y divide-border text-sm">
               {logsData.map((log: any) => (
-                <li key={log.id} className="py-3 flex flex-col gap-1">
+                <li key={log.id} className="px-6 py-4 flex flex-col gap-1 hover:bg-muted/30 transition-colors">
                   <div className="flex justify-between text-muted-foreground">
                     <span className="font-mono text-xs uppercase tracking-wider">
                       {{
@@ -315,6 +318,7 @@ function ProcedureDetail() {
                 </li>
               ))}
             </ul>
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">No audit logs found.</p>
           )}
