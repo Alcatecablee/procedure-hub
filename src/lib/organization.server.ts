@@ -29,6 +29,13 @@ const DEFAULT_CATEGORIES = [
   { name: "Reference Material", slug: "reference-material", sort_order: 12 },
 ] as const;
 
+const DEFAULT_DEPARTMENTS = [
+  "Operations",
+  "Engineering",
+  "Customer Support",
+  "Compliance",
+] as const;
+
 // ─── SERVICE CLIENT (bypasses RLS for server-side ops) ────────
 function getServiceClient() {
   const url = process.env.SUPABASE_URL;
@@ -73,8 +80,10 @@ const CreateOrgInput = z.object({
     }),
 });
 
-export const createOrganization = createServerFn({ method: "POST" }).handler(async (ctx) => {
-  const data = CreateOrgInput.parse(ctx.data as any);
+export const createOrganization = createServerFn({ method: "POST" })
+  .inputValidator(CreateOrgInput)
+  .handler(async (ctx) => {
+  const data = CreateOrgInput.parse(ctx.data);
   const headers = getRequestHeaders();
   const token = headers.get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -150,6 +159,13 @@ export const createOrganization = createServerFn({ method: "POST" }).handler(asy
     sort_order: c.sort_order,
   }));
   await svc.from("categories").insert(categoryRows);
+
+  // Seed default departments.
+  const departmentRows = DEFAULT_DEPARTMENTS.map((name) => ({
+    organization_id: org.id,
+    name,
+  }));
+  await svc.from("departments").insert(departmentRows);
 
   // Audit log.
   await svc.from("audit_logs").insert({

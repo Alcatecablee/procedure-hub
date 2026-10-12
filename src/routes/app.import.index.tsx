@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth, useIsManager } from "@/lib/auth";
@@ -62,7 +61,7 @@ function ImportPage() {
           : undefined,
       });
       toast.success("Extraction complete. Ready for review.");
-      void navigate({ to: `/app/import/${res.importId}` });
+      void navigate({ to: "/app/import/$importId", params: { importId: res.importId } });
     } catch (e) {
       toast.error((e as Error).message);
       void refetch(); // refresh the list to show the failed import
@@ -191,7 +190,8 @@ function ImportPage() {
                       <td className="px-4 py-3 tabular-nums">{imp.candidate_count || 0}</td>
                       <td className="px-4 py-3">
                         <Link
-                          to={`/app/import/${imp.id}`}
+                          to="/app/import/$importId"
+                          params={{ importId: imp.id }}
                           className="text-blue-500 hover:underline"
                         >
                           View details

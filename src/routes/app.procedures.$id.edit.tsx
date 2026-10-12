@@ -1,6 +1,6 @@
-﻿import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth";
+import { useAuth, useIsManager } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { getProcedure, updateProcedure, getCategories, getDepartments } from "@/lib/procedures.server";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,8 +14,15 @@ export const Route = createFileRoute("/app/procedures/$id/edit")({
 function EditProcedure() {
   const { id } = Route.useParams();
   const { org } = useAuth();
+  const isManager = useIsManager();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (org && !isManager) {
+      void navigate({ to: `/app/procedures/${id}` });
+    }
+  }, [org, isManager, navigate, id]);
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -29,6 +36,21 @@ function EditProcedure() {
   const [effectiveDate, setEffectiveDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [expectedVersion, setExpectedVersion] = useState(0);
+
+  const { data: deptData } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      return getDepartments({
+        headers: session?.access_token
+          ? { authorization: "Bearer " + session.access_token }
+          : undefined,
+      });
+    },
+  });
+  const departments = deptData || [];
 
   const { data: procData, isLoading } = useQuery({
     queryKey: ["procedure", id, org?.organization.id],
@@ -213,6 +235,21 @@ function EditProcedure() {
                 {categories.map((c: any) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block eyebrow mb-2">Assigned Department</label>
+              <select
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+                className="w-full bg-card border border-input px-3 py-2.5 text-sm rounded-md shadow-sm focus:ring-primary focus:border-primary transition-all"
+              >
+                <option value="">Global (All Departments)</option>
+                {departments.map((d: any) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
                   </option>
                 ))}
               </select>

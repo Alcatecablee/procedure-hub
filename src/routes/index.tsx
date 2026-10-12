@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 
 export const Route = createFileRoute("/")({
@@ -19,7 +19,7 @@ const FADE_UP = {
   initial: { opacity: 0, y: 20 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, margin: "-50px" },
-  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
 };
 
 const STAGGER_CONTAINER = {
@@ -32,7 +32,7 @@ const STAGGER_CONTAINER = {
 const STAGGER_ITEM = {
   initial: { opacity: 0, y: 15 },
   whileInView: { opacity: 1, y: 0 },
-  transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+  transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
 };
 
 function Landing() {
@@ -254,13 +254,13 @@ function Landing() {
             <span className="italic text-ink-soft block mt-2">Begin the first volume.</span>
           </h2>
           <div className="mt-12 flex items-center justify-center gap-6">
-            <Link
-              to="mailto:support@procedure-hub.com"
+            <a
+              href="mailto:support@procedure-hub.com"
               className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 text-sm font-medium rounded-lg hover:bg-primary/90 transition-all hover:scale-[1.02] hover:shadow-md"
             >
               Contact us for enterprise access
               <span aria-hidden>&rarr;</span>
-            </Link>
+            </a>
           </div>
           <div className="mt-16 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
             Procedure Hub &middot; Vol. I &middot; Compiled for operations teams

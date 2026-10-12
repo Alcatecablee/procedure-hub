@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Procedure Hub - Auth Context
  *
  * Loading sequence (in order, never skipped):
@@ -30,6 +30,9 @@ export interface OrgContext {
   organization: Organization;
   member: OrganizationMember;
   role: MemberRole;
+  departmentId: string | null;
+  department_id: string | null;
+  designation: string | null;
 }
 
 interface AuthCtx {
@@ -80,6 +83,8 @@ async function resolveMembership(userId: string): Promise<OrgContext | null> {
       organization_id: memberCast.organization_id,
       user_id: memberCast.user_id,
       role: memberCast.role,
+      designation: memberCast.designation ?? null,
+      department_id: memberCast.department_id ?? null,
       status: memberCast.status,
       invited_by: memberCast.invited_by,
       joined_at: memberCast.joined_at,
@@ -87,6 +92,9 @@ async function resolveMembership(userId: string): Promise<OrgContext | null> {
       updated_at: memberCast.updated_at,
     },
     role: memberCast.role,
+    departmentId: memberCast.department_id ?? null,
+    department_id: memberCast.department_id ?? null,
+    designation: memberCast.designation ?? null,
   };
 }
 

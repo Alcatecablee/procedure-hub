@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth";
+import { useAuth, useIsManager } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { createProcedure, getCategories, getDepartments } from "@/lib/procedures.server";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/procedures/new")({
@@ -13,7 +13,14 @@ export const Route = createFileRoute("/app/procedures/new")({
 
 function NewProcedure() {
   const { org } = useAuth();
+  const isManager = useIsManager();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (org && !isManager) {
+      void navigate({ to: "/app/procedures" });
+    }
+  }, [org, isManager, navigate]);
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -30,8 +37,14 @@ function NewProcedure() {
   const { data: deptData } = useQuery({
     queryKey: ["departments"],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      return getDepartments({ headers: { Authorization: "Bearer ${session?.access_token}" } });
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      return getDepartments({
+        headers: session?.access_token
+          ? { authorization: "Bearer " + session.access_token }
+          : undefined,
+      });
     },
   });
   const departments = deptData || [];

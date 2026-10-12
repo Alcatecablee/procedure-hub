@@ -22,6 +22,7 @@ import {
   updateMemberRole,
   removeMember,
 } from "@/lib/team.server";
+import { getDepartments } from "@/lib/procedures.server";
 
 export const Route = createFileRoute("/app/team")({ component: Team });
 
@@ -37,13 +38,13 @@ function Team() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "manager" | "staff">("staff");
   const [inviteDesignation, setInviteDesignation] = useState("");
-  const [inviteDepartment, setInviteDepartment] = useState("");
+  const [inviteDepartmentId, setInviteDepartmentId] = useState("");
   const [isInviting, setIsInviting] = useState(false);
 
   const [editingMember, setEditingMember] = useState<any>(null);
   const [editRole, setEditRole] = useState<string>("");
   const [editDesignation, setEditDesignation] = useState<string>("");
-  const [editDepartment, setEditDepartment] = useState<string>("");
+  const [editDepartmentId, setEditDepartmentId] = useState<string>("");
 
   const getHeaders = async () => {
     const {
@@ -51,6 +52,14 @@ function Team() {
     } = await supabase.auth.getSession();
     return session?.access_token ? { authorization: "Bearer " + session.access_token } : undefined;
   };
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const headers = await getHeaders();
+      return await getDepartments({ headers });
+    },
+  });
 
   const { data: members = [], isLoading: loadingMembers, isError: isMembersError, error: membersError } = useQuery({
     queryKey: ["team", "members"],
@@ -79,7 +88,7 @@ function Team() {
           email: inviteEmail,
           role: inviteRole,
           designation: inviteDesignation || undefined,
-          department: inviteDepartment || undefined,
+          department_id: inviteDepartmentId || undefined,
         },
       });
     },
@@ -87,7 +96,7 @@ function Team() {
       setInviteEmail("");
       setInviteRole("staff");
       setInviteDesignation("");
-      setInviteDepartment("");
+      setInviteDepartmentId("");
       queryClient.invalidateQueries({ queryKey: ["team", "invitations"] });
       queryClient.invalidateQueries({ queryKey: ["team", "members"] });
       toast.success("Invitation sent");
@@ -128,9 +137,9 @@ function Team() {
   const updateRoleMut = useMutation({
     mutationFn: async (data: {
       memberId: string;
-      role?: string;
-      designation?: string;
-      department?: string;
+      role?: "owner" | "admin" | "manager" | "staff";
+      designation?: string | null;
+      department_id?: string | null;
     }) => {
       const headers = await getHeaders();
       return await updateMemberRole({ headers, data });
@@ -201,14 +210,19 @@ function Team() {
 
             <div className="md:col-span-3">
               <label className="eyebrow block mb-1.5 text-muted-foreground">Department</label>
-              <input
-                type="text"
-                value={inviteDepartment}
-                onChange={(e) => setInviteDepartment(e.target.value)}
-                placeholder="e.g. Customer Ops"
+              <select
+                value={inviteDepartmentId}
+                onChange={(e) => setInviteDepartmentId(e.target.value)}
                 disabled={isInviting}
                 className="w-full bg-background border border-input px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              >
+                <option value="">None / Unassigned</option>
+                {departments.map((d: any) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="md:col-span-2">
@@ -345,7 +359,7 @@ function Team() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">{m.designation || "-"}</td>
-                      <td className="px-5 py-3 text-muted-foreground">{m.department || "-"}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{(m as any).departments?.name || "-"}</td>
                       <td className="px-5 py-3">
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider ${m.status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"}`}
@@ -359,7 +373,7 @@ function Team() {
                             setEditingMember(m);
                             setEditRole(m.role);
                             setEditDesignation(m.designation || "");
-                            setEditDepartment(m.department || "");
+                            setEditDepartmentId(m.department_id || "");
                           }}
                           className="text-primary hover:underline text-xs"
                         >
@@ -427,13 +441,18 @@ function Team() {
             </div>
             <div>
               <label className="eyebrow block mb-1.5 text-muted-foreground">Department</label>
-              <input
-                type="text"
-                value={editDepartment}
-                onChange={(e) => setEditDepartment(e.target.value)}
+              <select
+                value={editDepartmentId}
+                onChange={(e) => setEditDepartmentId(e.target.value)}
                 className="w-full bg-background border border-input px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="e.g. Customer Ops"
-              />
+              >
+                <option value="">None / Unassigned</option>
+                {departments.map((d: any) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <DialogFooter>
@@ -449,9 +468,9 @@ function Team() {
                 if (!editingMember) return;
                 updateRoleMut.mutate({
                   memberId: editingMember.id,
-                  role: editRole,
+                  role: (editRole as "owner" | "admin" | "manager" | "staff") || undefined,
                   designation: editDesignation || undefined,
-                  department: editDepartment || undefined,
+                  department_id: editDepartmentId || null,
                 });
               }}
               disabled={updateRoleMut.isPending}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth, useIsAdmin } from "@/lib/auth";
+import { useAuth, useIsAdmin, useIsManager } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { PriorityBadge, StatusBadge } from "@/components/badges";
 import {
@@ -22,6 +22,7 @@ function ProcedureDetail() {
   const { id } = Route.useParams();
   const { org } = useAuth();
   const isAdmin = useIsAdmin();
+  const isManager = useIsManager();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -159,7 +160,7 @@ function ProcedureDetail() {
         title={p.title}
         subtitle={p.summary || "No summary provided."}
         actions={
-          isAdmin ? (
+          isManager ? (
             <div className="flex gap-2">
               <button
                 onClick={() => void navigate({ to: `/app/procedures/${p.id}/edit` })}
@@ -196,7 +197,7 @@ function ProcedureDetail() {
           </div>
         </div>
 
-        {isAdmin && p.status === "draft" && (
+        {isManager && p.status === "draft" && (
           <div className="mb-8 p-8 border border-accent/50 bg-accent/10 rounded-xl shadow-sm flex items-start justify-between gap-6">
             <div>
               <h3 className="font-display font-medium mb-1">Draft Procedure</h3>

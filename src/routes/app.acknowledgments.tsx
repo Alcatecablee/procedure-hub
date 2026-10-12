@@ -28,7 +28,7 @@ function Acks() {
       <PageHeader
         eyebrow="My Compliance"
         title="Acknowledgments"
-        description="Review and acknowledge your required procedures."
+        subtitle="Review and acknowledge your required procedures."
       />
 
       {data.totalRequired === 0 ? (
@@ -54,13 +54,13 @@ function Acks() {
                     {data.outstanding.map((row) => (
                       <tr key={row.procedure_id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-medium">
-                          <Link to={`/app/procedures/${row.procedure_id}`} className="hover:underline">
+                          <Link to="/app/procedures/$id" params={{ id: row.procedure_id }} className="hover:underline">
                             {row.procedure_title}
                           </Link>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">v{row.current_version_number}</td>
                         <td className="px-4 py-3 text-right">
-                          <Link to={`/app/procedures/${row.procedure_id}`} className="text-primary hover:underline">
+                          <Link to="/app/procedures/$id" params={{ id: row.procedure_id }} className="text-primary hover:underline">
                             Review & Acknowledge
                           </Link>
                         </td>
@@ -89,7 +89,7 @@ function Acks() {
                     {data.requiresReack.map((row) => (
                       <tr key={row.procedure_id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-medium">
-                          <Link to={`/app/procedures/${row.procedure_id}`} className="hover:underline">
+                          <Link to="/app/procedures/$id" params={{ id: row.procedure_id }} className="hover:underline">
                             {row.procedure_title}
                           </Link>
                         </td>
@@ -98,7 +98,7 @@ function Acks() {
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">v{row.current_version_number}</td>
                         <td className="px-4 py-3 text-right">
-                          <Link to={`/app/procedures/${row.procedure_id}`} className="text-primary hover:underline">
+                          <Link to="/app/procedures/$id" params={{ id: row.procedure_id }} className="text-primary hover:underline">
                             Review Changes
                           </Link>
                         </td>
@@ -126,7 +126,7 @@ function Acks() {
                     {data.acknowledged.map((row) => (
                       <tr key={row.procedure_id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-medium">
-                          <Link to={`/app/procedures/${row.procedure_id}`} className="hover:underline">
+                          <Link to="/app/procedures/$id" params={{ id: row.procedure_id }} className="hover:underline">
                             {row.procedure_title}
                           </Link>
                         </td>

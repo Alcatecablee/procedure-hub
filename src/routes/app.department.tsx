@@ -1,4 +1,3 @@
-// @ts-nocheck — preserved from original; remove once types.ts is fully updated
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
@@ -29,7 +28,7 @@ function Department() {
     if (!isManager) void navigate({ to: "/app" });
   }, [isManager, navigate]);
 
-  // Invite form state — restricted to staff-only for this page
+  // Invite form state - restricted to staff-only for this page
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteDesignation, setInviteDesignation] = useState("");
   const [isInviting, setIsInviting] = useState(false);
@@ -63,7 +62,7 @@ function Department() {
   const inviteMut = useMutation({
     mutationFn: async () => {
       const headers = await getHeaders();
-      // role is hardcoded to "staff" — Managers can only invite staff.
+      // role is hardcoded to "staff" - Managers can only invite staff.
       return await createInvitation({
         headers,
         data: {
@@ -114,7 +113,7 @@ function Department() {
     onError: (e) => toast.error((e as Error).message),
   });
 
-  // Do not render until manager status is confirmed — prevents flash of unauthorized content.
+  // Do not render until manager status is confirmed - prevents flash of unauthorized content.
   if (!isManager) return null;
 
   return (
@@ -125,7 +124,7 @@ function Department() {
         subtitle="Manage staff within your assigned department."
       />
       <div className="px-6 md:px-10 py-6 max-w-6xl space-y-12">
-        {/* Invite Form — role is locked to "staff"; no role selector shown */}
+        {/* Invite Form - role is locked to "staff"; no role selector shown */}
         <section>
           <div className="eyebrow mb-6">Invite Staff</div>
           <form
@@ -234,7 +233,7 @@ function Department() {
           </section>
         )}
 
-        {/* Department Members — read-only view. Managers cannot edit roles or departments. */}
+        {/* Department Members - read-only view. Managers cannot edit roles or departments. */}
         <section>
           <div className="eyebrow mb-6">Department Members</div>
           <div className="border border-border bg-card overflow-hidden">

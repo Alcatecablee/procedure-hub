@@ -88,6 +88,9 @@ function ReviewPage() {
         finalCatId = null;
       }
     }
+    if (!finalCatId) {
+      finalCatId = null;
+    }
 
     setBusy((prev) => ({ ...prev, [draft.id]: true }));
     try {
@@ -165,7 +168,14 @@ function ReviewPage() {
           ← Back to imports
         </Link>
 
-        {drafts.length === 0 && (
+        {importRecord.status === "failed" && (
+          <div className="p-4 border border-destructive/30 bg-destructive/5 text-destructive rounded-sm text-sm">
+            <span className="font-semibold block mb-1">Ingestion Failed</span>
+            {importRecord.error_message || "An unexpected error occurred during AI processing."}
+          </div>
+        )}
+
+        {drafts.length === 0 && importRecord.status !== "failed" && (
           <div className="p-8 border border-border bg-card text-center text-muted-foreground">
             No candidates were extracted from this import.
           </div>

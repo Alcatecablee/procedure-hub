@@ -60,9 +60,7 @@ export function OrgOnboarding() {
       } = await supabase.auth.getSession();
       if (!s?.access_token) throw new Error("Not authenticated");
 
-      // @ts-ignore
       await createOrganization({
-        // @ts-ignore
         data: {
           name: name.trim(),
           domain: domain.trim() || emailDomain || undefined,

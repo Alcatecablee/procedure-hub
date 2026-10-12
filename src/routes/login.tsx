@@ -1,10 +1,15 @@
-﻿import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): { mode?: Mode } => ({
+    mode: (["signin", "signup", "reset", "update-password"].includes(search.mode as string)
+      ? search.mode
+      : undefined) as Mode | undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sign in - Procedure Hub" },
@@ -14,12 +19,13 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Mode = "signin" | "signup" | "reset";
+type Mode = "signin" | "signup" | "reset" | "update-password";
 
 function LoginPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<Mode>("signin");
+  const search = Route.useSearch();
+  const [mode, setMode] = useState<Mode>(search.mode || "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -27,13 +33,34 @@ function LoginPage() {
   const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) void navigate({ to: "/app" });
-  }, [user, loading, navigate]);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setMode("update-password");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!loading && user && mode !== "update-password") {
+      void navigate({ to: "/app" });
+    }
+  }, [user, loading, navigate, mode]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
+      if (mode === "update-password") {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        toast.success("Password updated successfully.");
+        void navigate({ to: "/app" });
+        return;
+      }
+
       if (mode === "reset") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/login?mode=update-password`,
@@ -145,17 +172,21 @@ function LoginPage() {
             <>
               <div className="eyebrow mb-2">
                 {mode === "signin"
-                  ? "Folio 02 Â· Sign in"
+                  ? "Folio 02 - Sign in"
                   : mode === "signup"
-                    ? "Folio 02 Â· Open the record"
-                    : "Folio 02 Â· Reset password"}
+                    ? "Folio 02 - Open the record"
+                    : mode === "update-password"
+                      ? "Folio 02 - Update password"
+                      : "Folio 02 - Reset password"}
               </div>
               <h1 className="font-display text-3xl mb-8">
                 {mode === "signin"
                   ? "Sign in"
                   : mode === "signup"
                     ? "Create account"
-                    : "Reset your password"}
+                    : mode === "update-password"
+                      ? "Set new password"
+                      : "Reset your password"}
               </h1>
 
               <form onSubmit={submit} className="space-y-4" aria-label="Authentication form">
@@ -176,26 +207,28 @@ function LoginPage() {
                   </div>
                 )}
 
-                <div>
-                  <label className="eyebrow block mb-1.5" htmlFor="email">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={busy}
-                    required
-                    autoComplete="email"
-                    className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
-                  />
-                </div>
+                {mode !== "update-password" && (
+                  <div>
+                    <label className="eyebrow block mb-1.5" htmlFor="email">
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={busy}
+                      required
+                      autoComplete="email"
+                      className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+                    />
+                  </div>
+                )}
 
                 {mode !== "reset" && (
                   <div>
                     <label className="eyebrow block mb-1.5" htmlFor="password">
-                      Password
+                      {mode === "update-password" ? "New password" : "Password"}
                     </label>
                     <input
                       id="password"
@@ -231,7 +264,9 @@ function LoginPage() {
                       ? "Sign in"
                       : mode === "signup"
                         ? "Create account"
-                        : "Send reset link"}
+                        : mode === "update-password"
+                          ? "Save new password"
+                          : "Send reset link"}
                 </button>
               </form>
 
@@ -244,6 +279,15 @@ function LoginPage() {
                       className="text-foreground underline-offset-4 hover:underline"
                     >
                       Create one
+                    </button>
+                  </p>
+                ) : mode === "update-password" ? (
+                  <p>
+                    <button
+                      onClick={() => setMode("signin")}
+                      className="text-foreground underline-offset-4 hover:underline"
+                    >
+                      Back to sign in
                     </button>
                   </p>
                 ) : (

@@ -76,14 +76,15 @@ function Dashboard() {
           .order("updated_at", { ascending: false }),
         supabase
           .from("procedures")
-          .select("id,title,priority,status,updated_at,acknowledgment_required,version_number")
+          .select("id,title,priority,status,updated_at,acknowledgment_required,current_version_id")
           .eq("status", "active")
           .eq("acknowledgment_required", true)
           .eq("organization_id", orgId),
         supabase
           .from("acknowledgments")
           .select("procedure_id,procedure_version_id")
-          .eq("user_id", user.id),
+          .eq("user_id", user.id)
+          .is("revoked_at", null),
       ]);
 
       if (err1 || err2 || err3 || err4 || err5) throw new Error("Failed to load dashboard data.");
@@ -91,7 +92,9 @@ function Dashboard() {
       const ackSet = new Set(
         (myAcks ?? []).map((a) => `${a.procedure_id}:${a.procedure_version_id}`),
       );
-      const unacked = (all ?? []).filter((p) => !ackSet.has(`${p.id}:${p.version_number}`));
+      const unacked = (all ?? []).filter(
+        (p) => Boolean(p.current_version_id && !ackSet.has(`${p.id}:${p.current_version_id}`)),
+      );
 
       const totalRequired = all?.length ?? 0;
       const compliance =

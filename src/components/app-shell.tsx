@@ -66,9 +66,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </ul>
           </div>
 
-          {isManager && (
+          {isManager && !isAdmin && (
             <div>
-              <div className="eyebrow px-3 mb-2 mt-6">Section II - Management</div>
+              <div className="eyebrow px-3 mb-2 mt-6">Section II - Department</div>
               <ul className="space-y-px">
                 {managerLinks.map((l) => (
                   <li key={l.to}>
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {isAdmin && (
             <div>
-              <div className="eyebrow px-3 mb-2 mt-6">Section III - Admin</div>
+              <div className="eyebrow px-3 mb-2 mt-6">Section II - Administration</div>
               <ul className="space-y-px">
                 {adminLinks.map((l) => (
                   <li key={l.to}>
@@ -127,7 +127,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }}
             className="mt-3 w-full text-left text-xs font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors"
           >
-            Sign out â†’
+            Sign out -&gt;
           </button>
         </div>
       </aside>

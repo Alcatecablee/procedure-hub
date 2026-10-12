@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useAuth, useIsAdmin } from "@/lib/auth";
+import { useAuth, useIsAdmin, useIsManager } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { PriorityBadge, StatusBadge } from "@/components/badges";
 import { useState, useMemo, useEffect } from "react";
@@ -26,6 +26,7 @@ export const Route = createFileRoute("/app/procedures/")({
 function ProceduresList() {
   const { user, org } = useAuth();
   const isAdmin = useIsAdmin();
+  const isManager = useIsManager();
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
 
@@ -138,12 +139,12 @@ function ProceduresList() {
                           <span>{p.title}</span>
                           {p.acknowledgment_required && p.status === "active" && (
                             <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-priority-high">
-                              · Sign required
+                              - Sign required
                             </span>
                           )}
                         </div>
                         <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground mt-1">
-                          v{p.version_number} · Updated{" "}
+                          v{p.version_number} - Updated{" "}
                           {new Date(p.updated_at).toLocaleDateString()}
                         </div>
                       </div>

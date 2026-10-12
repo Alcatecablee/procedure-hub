@@ -71,11 +71,8 @@ export const getTeamMembers = createServerFn({ method: "GET" }).handler(async ()
   enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
-  let query = svc.from("organization_members");
-  if (ctx.role === "manager") {
-    query = query.eq("department_id", ctx.departmentId);
-  }
-  const { data: members, error } = await query
+  let query = svc
+    .from("organization_members")
     .select(
       `
       id,
@@ -83,12 +80,20 @@ export const getTeamMembers = createServerFn({ method: "GET" }).handler(async ()
       role,
       designation,
       department_id,
+      departments ( name ),
       status,
       joined_at
     `,
     )
     .eq("organization_id", ctx.orgId)
     .in("status", ["active", "suspended"]);
+
+  if (ctx.role === "manager") {
+    if (!ctx.departmentId) throw new Error("Manager must be assigned to a department");
+    query = query.eq("department_id", ctx.departmentId);
+  }
+
+  const { data: members, error } = await query;
 
   if (error) {
     console.error("==> getTeamMembers DB error:", error);
@@ -117,11 +122,8 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
   enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
-  let query = svc.from("organization_members");
-  if (ctx.role === "manager") {
-    query = query.eq("department_id", ctx.departmentId);
-  }
-  const { data: members, error } = await query
+  let query = svc
+    .from("organization_members")
     .select(
       `
       id,
@@ -129,6 +131,7 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
       role,
       designation,
       department_id,
+      departments ( name ),
       status,
       created_at,
       invited_by
@@ -136,6 +139,13 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
     )
     .eq("organization_id", ctx.orgId)
     .eq("status", "invited");
+
+  if (ctx.role === "manager") {
+    if (!ctx.departmentId) throw new Error("Manager must be assigned to a department");
+    query = query.eq("department_id", ctx.departmentId);
+  }
+
+  const { data: members, error } = await query;
 
   if (error) throw new Error(error.message);
   if (!members || members.length === 0) return [];
@@ -165,7 +175,9 @@ const InviteInput = z.object({
   department_id: z.string().uuid().optional(),
 });
 
-export const createInvitation = createServerFn({ method: "POST" }).handler(async (req) => {
+export const createInvitation = createServerFn({ method: "POST" })
+  .inputValidator(InviteInput)
+  .handler(async (req) => {
   const data = InviteInput.parse(req.data as any);
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -222,7 +234,11 @@ export const createInvitation = createServerFn({ method: "POST" }).handler(async
         throw new Error("User is already an active member.");
       if (existingMembership.status === "invited")
         throw new Error("User already has a pending invitation.");
-      throw new Error(`User status is ${existingMembership.status}.`);
+      if (existingMembership.status !== "removed")
+        throw new Error(`User status is ${existingMembership.status}.`);
+
+      // Allow re-inviting a previously removed member
+      await svc.auth.admin.inviteUserByEmail(email);
     }
   } else {
     // Create via Supabase Auth Admin
@@ -233,21 +249,24 @@ export const createInvitation = createServerFn({ method: "POST" }).handler(async
     targetUserId = inviteData.user.id;
   }
 
-  // 2. Insert using ONLY server-authoritative values.
-  // organization_id and department_id are NEVER taken from the client request.
-  const { error: insertError } = await svc.from("organization_members").insert({
-    organization_id: ctx.orgId,       // server-derived
-    user_id: targetUserId,
-    role: targetRole,                 // server-validated
-    designation: data.designation || null,
-    department_id: targetDepartment,  // server-derived (ctx.departmentId for managers)
-    status: "invited",
-    invited_by: ctx.user.id,
-    joined_at: null,
-  });
+  // 2. Upsert using ONLY server-authoritative values.
+  // Handles new invites, potential domain-matching trigger collisions, and re-inviting removed members.
+  const { error: upsertError } = await svc.from("organization_members").upsert(
+    {
+      organization_id: ctx.orgId,       // server-derived
+      user_id: targetUserId,
+      role: targetRole,                 // server-validated
+      designation: data.designation || null,
+      department_id: targetDepartment,  // server-derived (ctx.departmentId for managers)
+      status: "invited",
+      invited_by: ctx.user.id,
+      joined_at: null,
+    },
+    { onConflict: "organization_id,user_id" }
+  );
 
-  if (insertError) {
-    throw new Error(insertError.message);
+  if (upsertError) {
+    throw new Error(upsertError.message);
   }
 
   // 3. Audit log
@@ -267,7 +286,9 @@ export const createInvitation = createServerFn({ method: "POST" }).handler(async
 
 const IdInput = z.object({ id: z.string().uuid() });
 
-export const resendInvitation = createServerFn({ method: "POST" }).handler(async (req) => {
+export const resendInvitation = createServerFn({ method: "POST" })
+  .inputValidator(IdInput)
+  .handler(async (req) => {
   const data = IdInput.parse(req.data as any);
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -319,7 +340,9 @@ export const resendInvitation = createServerFn({ method: "POST" }).handler(async
   return { success: true };
 });
 
-export const cancelInvitation = createServerFn({ method: "POST" }).handler(async (req) => {
+export const cancelInvitation = createServerFn({ method: "POST" })
+  .inputValidator(IdInput)
+  .handler(async (req) => {
   const data = IdInput.parse(req.data as any);
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -376,7 +399,9 @@ const MemberUpdateInput = z.object({
   department_id: z.string().uuid().nullable().optional(),
 });
 
-export const updateMemberRole = createServerFn({ method: "POST" }).handler(async (req) => {
+export const updateMemberRole = createServerFn({ method: "POST" })
+  .inputValidator(MemberUpdateInput)
+  .handler(async (req) => {
   const data = MemberUpdateInput.parse(req.data as any);
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -450,7 +475,9 @@ export const updateMemberRole = createServerFn({ method: "POST" }).handler(async
   return { success: true };
 });
 
-export const removeMember = createServerFn({ method: "POST" }).handler(async (req) => {
+export const removeMember = createServerFn({ method: "POST" })
+  .inputValidator(IdInput)
+  .handler(async (req) => {
   const data = IdInput.parse(req.data as any);
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -513,7 +540,9 @@ export const removeMember = createServerFn({ method: "POST" }).handler(async (re
   return { success: true };
 });
 
-export const acceptInvitation = createServerFn({ method: "POST" }).handler(async (req) => {
+export const acceptInvitation = createServerFn({ method: "POST" })
+  .inputValidator(IdInput)
+  .handler(async (req) => {
   const data = IdInput.parse(req.data as any);
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");

@@ -20,13 +20,25 @@ function Compliance() {
     }
   }, [org, isManagerOrAbove, navigate]);
 
-  const { data, isLoading, isError } = useQuery({
+  interface OperationalComplianceResult {
+    overall: {
+      totalRequired: number;
+      acknowledged: number;
+      outstanding: number;
+      requiresReack: number;
+      compliancePct: number | null;
+    };
+    byProcedure: any[];
+    byDepartment: any[];
+  }
+
+  const { data, isLoading, isError } = useQuery<OperationalComplianceResult>({
     queryKey: ["operational-compliance", org?.organization.id, org?.departmentId],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      return getOperationalCompliance({ headers: { Authorization: `Bearer ${session?.access_token}` } });
+      return (await getOperationalCompliance({ headers: { Authorization: `Bearer ${session?.access_token}` } })) as any;
     },
-    enabled: !!user && isManagerOrAbove,
+    enabled: Boolean(user && isManagerOrAbove),
   });
 
   if (!isManagerOrAbove) return null;
@@ -39,7 +51,7 @@ function Compliance() {
       <PageHeader
         eyebrow="Management"
         title="Operational Compliance"
-        description={org?.role === "manager" ? "Compliance overview for your department." : "Organization-wide compliance overview."}
+        subtitle={org?.role === "manager" ? "Compliance overview for your department." : "Organization-wide compliance overview."}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -144,7 +156,7 @@ function Compliance() {
                   ) : (
                     data.byDepartment.map((d: any) => (
                       <tr key={d.department_id} className="hover:bg-muted/30">
-                        <td className="px-4 py-3 font-medium">{d.department_id === 'unassigned' ? 'Unassigned' : d.department_id}</td>
+                        <td className="px-4 py-3 font-medium">{d.department_name || (d.department_id === 'unassigned' ? 'Unassigned' : d.department_id)}</td>
                         <td className="px-4 py-3 text-right">
                           {d.compliancePct !== null ? `${d.compliancePct}%` : 'N/A'}
                         </td>

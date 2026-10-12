@@ -3,6 +3,21 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { verifyOrgRole, getUserClient } from "./procedures.server";
 import { z } from "zod";
 
+const VALID_CATEGORY_SLUGS = [
+  "call-handling",
+  "case-management",
+  "customer-communication",
+  "escalations",
+  "product-platform",
+  "compliance",
+  "attendance-admin",
+  "technical-procedures",
+  "security",
+  "general-operations",
+  "system-procedures",
+  "reference-material",
+] as const;
+
 // Zod schema for AI extraction
 const ProcedureExtractionSchema = z.object({
   procedures: z
@@ -17,39 +32,30 @@ const ProcedureExtractionSchema = z.object({
           "noise",
         ]),
         confidence: z.number().int().min(0).max(100),
-        title: z.string().min(1).max(80),
-        summary: z.string().max(300).optional(),
+        title: z.string().min(1).max(250),
+        summary: z.string().max(500).optional().nullable(),
         description: z.string().max(8000),
         suggested_category_slug: z
-          .enum([
-            "call-handling",
-            "case-management",
-            "customer-communication",
-            "escalations",
-            "product-platform",
-            "compliance",
-            "attendance-admin",
-            "technical-procedures",
-            "security",
-            "general-operations",
-            "system-procedures",
-            "reference-material",
-          ])
-          .optional(),
-        priority: z.enum(["critical", "high", "medium", "informational"]),
+          .enum(VALID_CATEGORY_SLUGS)
+          .optional()
+          .nullable()
+          .catch(undefined),
+        priority: z.enum(["critical", "high", "medium", "informational"]).default("medium"),
         effective_date: z
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/)
           .optional()
-          .nullable(),
+          .nullable()
+          .catch(null),
         expiry_date: z
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/)
           .optional()
-          .nullable(),
-        source_date: z.string().max(100).optional(),
-        source_author: z.string().max(150).optional(),
-        source_evidence: z.string().max(500).optional(),
+          .nullable()
+          .catch(null),
+        source_date: z.string().max(100).optional().nullable(),
+        source_author: z.string().max(150).optional().nullable(),
+        source_evidence: z.string().max(500).optional().nullable(),
         possible_duplicate: z.boolean().default(false),
         contains_sensitive: z.boolean().default(false),
       }),
@@ -57,9 +63,21 @@ const ProcedureExtractionSchema = z.object({
     .max(50),
 });
 
-export const ingestTeamsExport = createServerFn({ method: "POST" }).handler(async (ctx: any) => {
-  const data = ctx.data;
-  const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+const IngestInput = z.object({
+  organizationId: z.string().uuid(),
+  rawText: z.string().min(1),
+  sourceType: z
+    .enum(["teams", "slack", "whatsapp", "discord", "email", "manual", "other"])
+    .optional()
+    .default("teams"),
+  sourceChannel: z.string().optional(),
+});
+
+export async function ingestTeamsExportCore(
+  dataRaw: z.infer<typeof IngestInput>,
+  token: string,
+) {
+  const data = IngestInput.parse(dataRaw);
   if (!token) throw new Error("Unauthorized");
 
   const client = getUserClient(token);
@@ -83,7 +101,7 @@ export const ingestTeamsExport = createServerFn({ method: "POST" }).handler(asyn
     .insert({
       organization_id: data.organizationId,
       created_by: user.id,
-      source_type: data.sourceType,
+      source_type: data.sourceType || "teams",
       character_count: textContent.length,
       status: "processing",
     })
@@ -117,8 +135,10 @@ Return STRICT JSON matching this schema: { "procedures": [ ... ] }`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
+    const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+
     const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,7 +172,10 @@ Return STRICT JSON matching this schema: { "procedures": [ ... ] }`;
                       title: { type: "STRING" },
                       summary: { type: "STRING" },
                       description: { type: "STRING" },
-                      suggested_category_slug: { type: "STRING" },
+                      suggested_category_slug: {
+                        type: "STRING",
+                        enum: [...VALID_CATEGORY_SLUGS],
+                      },
                       priority: {
                         type: "STRING",
                         enum: ["critical", "high", "medium", "informational"],
@@ -160,7 +183,7 @@ Return STRICT JSON matching this schema: { "procedures": [ ... ] }`;
                       source_evidence: { type: "STRING" },
                       contains_sensitive: { type: "BOOLEAN" },
                     },
-                    required: ["classification", "confidence", "title", "description"],
+                    required: ["classification", "confidence", "title", "description", "priority"],
                   },
                 },
               },
@@ -178,8 +201,10 @@ Return STRICT JSON matching this schema: { "procedures": [ ... ] }`;
     }
 
     const aiData = await aiRes.json();
-    const contentText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    const modelVersion = aiData?.modelVersion || "gemini-1.5-flash";
+    const parts = aiData?.candidates?.[0]?.content?.parts || [];
+    const textPart = parts.find((p: any) => typeof p.text === "string" && !p.thought) || parts[0];
+    const contentText = textPart?.text || "{}";
+    const modelVersion = aiData?.modelVersion || GEMINI_MODEL;
 
     // Parse JSON
     let parsedJson;
@@ -218,7 +243,7 @@ Return STRICT JSON matching this schema: { "procedures": [ ... ] }`;
         possible_duplicate: p.possible_duplicate,
         contains_sensitive: p.contains_sensitive,
         status: "pending",
-        model_name: "gemini-1.5-flash",
+        model_name: GEMINI_MODEL,
         model_version: modelVersion,
         raw_ai_output: parsedJson,
       }));
@@ -251,9 +276,24 @@ Return STRICT JSON matching this schema: { "procedures": [ ... ] }`;
       .eq("id", importRow.id);
     throw error;
   }
+}
+
+export const ingestTeamsExport = createServerFn({ method: "POST" })
+  .inputValidator(IngestInput)
+  .handler(async (ctx) => {
+    const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+    if (!token) throw new Error("Unauthorized");
+    return ingestTeamsExportCore(ctx.data, token);
+  });
+
+const GetImportInput = z.object({
+  organizationId: z.string().uuid(),
+  importId: z.string().uuid(),
 });
 
-export const getImport = createServerFn({ method: "GET" }).handler(async (ctx: any) => {
+export const getImport = createServerFn({ method: "GET" })
+  .inputValidator(GetImportInput)
+  .handler(async (ctx: any) => {
   const data = ctx.data;
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -287,7 +327,13 @@ export const getImport = createServerFn({ method: "GET" }).handler(async (ctx: a
   return { importRecord: imp, drafts: drafts || [] };
 });
 
-export const getImports = createServerFn({ method: "GET" }).handler(async (ctx: any) => {
+const GetImportsInput = z.object({
+  organizationId: z.string().uuid(),
+});
+
+export const getImports = createServerFn({ method: "GET" })
+  .inputValidator(GetImportsInput)
+  .handler(async (ctx: any) => {
   const data = ctx.data;
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -311,7 +357,22 @@ export const getImports = createServerFn({ method: "GET" }).handler(async (ctx: 
   return imports || [];
 });
 
-export const approveImportDraft = createServerFn({ method: "POST" }).handler(async (ctx: any) => {
+const ApproveDraftInput = z.object({
+  organizationId: z.string().uuid(),
+  draftId: z.string().uuid(),
+  title: z.string().min(1),
+  summary: z.string().optional().nullable(),
+  description: z.string().min(1),
+  priority: z.enum(["critical", "high", "medium", "informational"]),
+  categoryId: z.string().uuid().optional().nullable(),
+  effectiveDate: z.string().optional().nullable(),
+  expiryDate: z.string().optional().nullable(),
+  acknowledgmentRequired: z.boolean().default(true),
+});
+
+export const approveImportDraft = createServerFn({ method: "POST" })
+  .inputValidator(ApproveDraftInput)
+  .handler(async (ctx: any) => {
   const data = ctx.data;
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
@@ -332,17 +393,25 @@ export const approveImportDraft = createServerFn({ method: "POST" }).handler(asy
     _summary: data.summary,
     _description: data.description,
     _priority: data.priority,
-    _category_id: data.categoryId,
-    _effective_date: data.effectiveDate,
-    _expiry_date: data.expiryDate,
-    _ack_required: data.acknowledgmentRequired,
+    _category_id: data.categoryId || null,
+    _effective_date: data.effectiveDate || null,
+    _expiry_date: data.expiryDate || null,
+    _ack_required: Boolean(data.acknowledgmentRequired),
   });
 
   if (error) throw new Error(error.message);
   return { procedureId: res };
 });
 
-export const rejectImportDraft = createServerFn({ method: "POST" }).handler(async (ctx: any) => {
+const RejectDraftInput = z.object({
+  organizationId: z.string().uuid(),
+  draftId: z.string().uuid(),
+  notes: z.string().default("Rejected by reviewer"),
+});
+
+export const rejectImportDraft = createServerFn({ method: "POST" })
+  .inputValidator(RejectDraftInput)
+  .handler(async (ctx: any) => {
   const data = ctx.data;
   const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
