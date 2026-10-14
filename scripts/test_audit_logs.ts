@@ -146,6 +146,26 @@ async function runAuditLogRegressionTests() {
       "Audit event contains resolved actor profile email",
     );
 
+    // TEST 1b: Authenticated Staff user requesting published procedure audit logs must be explicitly rejected
+    console.log("\n--- Test 1b: Staff User Blocked From Published Procedure Audit Logs ---");
+    let staffPublishedRejected = false;
+    let staffPublishedError = "";
+    try {
+      await getProcedureAuditLogsCore(
+        { organizationId: orgA.id, id: procId },
+        sessStaffA.token,
+      );
+    } catch (err: any) {
+      staffPublishedRejected = true;
+      staffPublishedError = err.message;
+    }
+    assert(
+      staffPublishedRejected &&
+        staffPublishedError.includes("Forbidden: Insufficient organization role"),
+      "Staff user requesting published procedure audit logs is rejected with Forbidden: Insufficient organization role",
+      staffPublishedError,
+    );
+
     // TEST 2: Missing organizationId is rejected by Zod schema
     console.log("\n--- Test 2: Missing or Invalid organizationId Rejected ---");
     let missingOrgRejected = false;
@@ -268,9 +288,8 @@ async function runAuditLogRegressionTests() {
     }
     assert(
       staffDraftRejected &&
-        (staffDraftError.includes("Forbidden") ||
-          staffDraftError.includes("Procedure not found or access denied")),
-      "Staff member cannot access audit logs of an unpublished draft procedure",
+        staffDraftError.includes("Forbidden: Insufficient organization role"),
+      "Staff member cannot access audit logs of an unpublished draft procedure (rejected with Forbidden: Insufficient organization role)",
       staffDraftError,
     );
 

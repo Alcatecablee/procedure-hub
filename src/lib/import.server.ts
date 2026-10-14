@@ -133,66 +133,78 @@ For each distinct procedure you identify, produce:
 Return STRICT JSON matching this schema: { "procedures": [ ... ] }`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+    const timeout = setTimeout(() => controller.abort(), 90000); // 90s timeout
 
     const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
-    const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: textContent }] }],
-          systemInstruction: { role: "system", parts: [{ text: prompt }] },
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.1,
-            responseSchema: {
-              type: "OBJECT",
-              properties: {
-                procedures: {
-                  type: "ARRAY",
-                  items: {
-                    type: "OBJECT",
-                    properties: {
-                      classification: {
-                        type: "STRING",
-                        enum: [
-                          "procedure",
-                          "reference",
-                          "expectation",
-                          "incident",
-                          "announcement",
-                          "noise",
-                        ],
-                      },
-                      confidence: { type: "INTEGER" },
-                      title: { type: "STRING" },
-                      summary: { type: "STRING" },
-                      description: { type: "STRING" },
-                      suggested_category_slug: {
-                        type: "STRING",
-                        enum: [...VALID_CATEGORY_SLUGS],
-                      },
-                      priority: {
-                        type: "STRING",
-                        enum: ["critical", "high", "medium", "informational"],
-                      },
-                      source_evidence: { type: "STRING" },
-                      contains_sensitive: { type: "BOOLEAN" },
+    const fetchPayload = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: textContent }] }],
+        systemInstruction: { role: "system", parts: [{ text: prompt }] },
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.1,
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              procedures: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    classification: {
+                      type: "STRING",
+                      enum: [
+                        "procedure",
+                        "reference",
+                        "expectation",
+                        "incident",
+                        "announcement",
+                        "noise",
+                      ],
                     },
-                    required: ["classification", "confidence", "title", "description", "priority"],
+                    confidence: { type: "INTEGER" },
+                    title: { type: "STRING" },
+                    summary: { type: "STRING" },
+                    description: { type: "STRING" },
+                    suggested_category_slug: {
+                      type: "STRING",
+                      enum: [...VALID_CATEGORY_SLUGS],
+                    },
+                    priority: {
+                      type: "STRING",
+                      enum: ["critical", "high", "medium", "informational"],
+                    },
+                    source_evidence: { type: "STRING" },
+                    contains_sensitive: { type: "BOOLEAN" },
                   },
+                  required: ["classification", "confidence", "title", "description", "priority"],
                 },
               },
-              required: ["procedures"],
             },
+            required: ["procedures"],
           },
-        }),
-      },
+        },
+      }),
+    };
+
+    let aiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      fetchPayload,
     );
+
+    if (!aiRes.ok && (aiRes.status === 503 || aiRes.status === 429)) {
+      // Retry once on temporary API overload with alternative supported model
+      await new Promise((r) => setTimeout(r, 2000));
+      const fallbackModel = GEMINI_MODEL === "gemini-flash-latest" ? "gemini-3.1-flash-lite" : "gemini-flash-latest";
+      aiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${GEMINI_API_KEY}`,
+        fetchPayload,
+      );
+    }
 
     clearTimeout(timeout);
     if (!aiRes.ok) {

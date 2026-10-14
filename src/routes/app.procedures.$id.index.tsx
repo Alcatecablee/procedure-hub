@@ -57,7 +57,7 @@ function ProcedureDetail() {
         data: { organizationId: org.organization.id, id },
       } as any);
     },
-    enabled: !!org?.organization.id,
+    enabled: !!org?.organization.id && (isAdmin || isManager),
   });
 
   const archiveMutation = useMutation({
@@ -282,48 +282,50 @@ function ProcedureDetail() {
           </ul>
           </div>
         </div>
-        <div className="pt-10 mt-12 border-t border-border">
-          <h2 className="font-display text-lg mb-6">Audit History</h2>
-          {logsData && logsData.length > 0 ? (
-            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-            <ul className="divide-y divide-border text-sm">
-              {logsData.map((log: any) => (
-                <li key={log.id} className="px-6 py-4 flex flex-col gap-1 hover:bg-muted/30 transition-colors">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span className="font-mono text-xs uppercase tracking-wider">
-                      {{
-                        procedure_created: "Draft Created",
-                        procedure_updated: "Draft Updated",
-                        procedure_published: "Published",
-                        procedure_acknowledged: "Acknowledged",
-                        procedure_archived: "Archived",
-                      }[log.event_type as string] || log.event_type.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-xs">{new Date(log.created_at).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-baseline">
-                    <span>
-                      <span className="font-medium text-foreground">
-                        {log.profiles?.full_name || log.profiles?.email || "Unknown User"}
+        {(isAdmin || isManager) && (
+          <div className="pt-10 mt-12 border-t border-border">
+            <h2 className="font-display text-lg mb-6">Audit History</h2>
+            {logsData && logsData.length > 0 ? (
+              <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+              <ul className="divide-y divide-border text-sm">
+                {logsData.map((log: any) => (
+                  <li key={log.id} className="px-6 py-4 flex flex-col gap-1 hover:bg-muted/30 transition-colors">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span className="font-mono text-xs uppercase tracking-wider">
+                        {{
+                          procedure_created: "Draft Created",
+                          procedure_updated: "Draft Updated",
+                          procedure_published: "Published",
+                          procedure_acknowledged: "Acknowledged",
+                          procedure_archived: "Archived",
+                        }[log.event_type as string] || log.event_type.replace(/_/g, " ")}
                       </span>
-                      <span className="text-muted-foreground"> performed action</span>
-                    </span>
-                    <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                      {log.metadata?.version
-                        ? "v" + log.metadata.version
-                        : log.metadata?.procedure_id
-                          ? "publish"
-                          : "id " + log.id.slice(0, 8)}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No audit logs found.</p>
-          )}
-        </div>
+                      <span className="text-xs">{new Date(log.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span>
+                        <span className="font-medium text-foreground">
+                          {log.profiles?.full_name || log.profiles?.email || "Unknown User"}
+                        </span>
+                        <span className="text-muted-foreground"> performed action</span>
+                      </span>
+                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                        {log.metadata?.version
+                          ? "v" + log.metadata.version
+                          : log.metadata?.procedure_id
+                            ? "publish"
+                            : "id " + log.id.slice(0, 8)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No audit logs found.</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

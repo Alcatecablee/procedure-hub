@@ -489,6 +489,21 @@ async function runAcceptanceSuite() {
       `getProcedureAuditLogsCore returned ${auditLogs.length} audit events with resolved actor profile emails`,
     );
 
+    // Regression Test 0: Staff member requesting published procedure audit logs is rejected with Forbidden
+    let staffPubAuditErr: any = null;
+    try {
+      await getProcedureAuditLogsCore(
+        { organizationId: orgA.id, id: approvedProcId },
+        sessStaffA.token,
+      );
+    } catch (e: any) {
+      staffPubAuditErr = e;
+    }
+    assert(
+      !!staffPubAuditErr && staffPubAuditErr.message.includes("Forbidden: Insufficient organization role"),
+      "getProcedureAuditLogsCore explicitly rejects Staff user requesting published procedure audit logs with Forbidden",
+    );
+
     // Regression Test 1: Missing organizationId must be rejected by GetProcedureAuditLogsInput schema
     let missingOrgErr: any = null;
     try {

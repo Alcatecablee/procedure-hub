@@ -175,11 +175,8 @@ const InviteInput = z.object({
   department_id: z.string().uuid().optional(),
 });
 
-export const createInvitation = createServerFn({ method: "POST" })
-  .inputValidator(InviteInput)
-  .handler(async (req) => {
-  const data = InviteInput.parse(req.data as any);
-  const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+export async function createInvitationCore(dataRaw: any, token: string) {
+  const data = InviteInput.parse(dataRaw);
   if (!token) throw new Error("Unauthorized");
   const ctx = await getCallerContext(token);
   enforceAdminOrManager(ctx.role);
@@ -280,7 +277,14 @@ export const createInvitation = createServerFn({ method: "POST" })
   });
 
   return { success: true };
-});
+}
+
+export const createInvitation = createServerFn({ method: "POST" })
+  .inputValidator(InviteInput)
+  .handler(async (req) => {
+    const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+    return createInvitationCore(req.data, token || "");
+  });
 
 
 
@@ -399,11 +403,8 @@ const MemberUpdateInput = z.object({
   department_id: z.string().uuid().nullable().optional(),
 });
 
-export const updateMemberRole = createServerFn({ method: "POST" })
-  .inputValidator(MemberUpdateInput)
-  .handler(async (req) => {
-  const data = MemberUpdateInput.parse(req.data as any);
-  const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+export async function updateMemberRoleCore(dataRaw: any, token: string) {
+  const data = MemberUpdateInput.parse(dataRaw);
   if (!token) throw new Error("Unauthorized");
   const ctx = await getCallerContext(token);
   // Managers must NOT be able to update roles or department_id for any member.
@@ -473,7 +474,14 @@ export const updateMemberRole = createServerFn({ method: "POST" })
   });
 
   return { success: true };
-});
+}
+
+export const updateMemberRole = createServerFn({ method: "POST" })
+  .inputValidator(MemberUpdateInput)
+  .handler(async (req) => {
+    const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+    return updateMemberRoleCore(req.data, token || "");
+  });
 
 export const removeMember = createServerFn({ method: "POST" })
   .inputValidator(IdInput)

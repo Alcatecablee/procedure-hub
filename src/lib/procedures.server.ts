@@ -448,11 +448,11 @@ export async function getProcedureAuditLogsCore(dataRaw: any, token: string) {
 
   const { client, user } = await requireAuth(token);
 
-  // Verify caller is an active member of the requested organization
+  // Verify caller has manager, admin, or owner role in the organization
   await verifyOrgRole(
     client,
     data.organizationId,
-    ["owner", "admin", "manager", "staff"],
+    ["owner", "admin", "manager"],
     user.id,
   );
 
@@ -466,16 +466,6 @@ export async function getProcedureAuditLogsCore(dataRaw: any, token: string) {
 
   if (pErr || !proc) {
     throw new Error("Procedure not found or access denied");
-  }
-
-  // If procedure is a draft, only owner, admin, or manager can view audit logs
-  if (proc.status === "draft") {
-    await verifyOrgRole(
-      client,
-      data.organizationId,
-      ["owner", "admin", "manager"],
-      user.id,
-    );
   }
 
   const { data: versions } = await client
