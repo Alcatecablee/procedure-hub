@@ -437,16 +437,52 @@ export const replaceProcedure = createServerFn({ method: "POST" })
   return replaceProcedureCore(ctx.data, token);
 });
 
+const GetProcedureAuditLogsInput = z.object({
+  organizationId: z.string().uuid(),
+  id: z.string().uuid(),
+});
+
 export async function getProcedureAuditLogsCore(dataRaw: any, token: string) {
-  const data = GetProcedureInput.parse(dataRaw);
+  const data = GetProcedureAuditLogsInput.parse(dataRaw);
   if (!token) throw new Error("Unauthorized");
 
-  const { client } = await requireAuth(token);
+  const { client, user } = await requireAuth(token);
+
+  // Verify caller is an active member of the requested organization
+  await verifyOrgRole(
+    client,
+    data.organizationId,
+    ["owner", "admin", "manager", "staff"],
+    user.id,
+  );
+
+  // Verify the procedure exists in the organization and is accessible to caller
+  const { data: proc, error: pErr } = await client
+    .from("procedures")
+    .select("id, status, department_id")
+    .eq("id", data.id)
+    .eq("organization_id", data.organizationId)
+    .maybeSingle();
+
+  if (pErr || !proc) {
+    throw new Error("Procedure not found or access denied");
+  }
+
+  // If procedure is a draft, only owner, admin, or manager can view audit logs
+  if (proc.status === "draft") {
+    await verifyOrgRole(
+      client,
+      data.organizationId,
+      ["owner", "admin", "manager"],
+      user.id,
+    );
+  }
 
   const { data: versions } = await client
     .from("procedure_versions")
     .select("id")
-    .eq("procedure_id", data.id);
+    .eq("procedure_id", data.id)
+    .eq("organization_id", data.organizationId);
   const versionIds = versions?.map((v: any) => v.id) || [];
 
   let orString = `and(entity_type.eq.procedure,entity_id.eq.${data.id})`;
@@ -487,7 +523,7 @@ export async function getProcedureAuditLogsCore(dataRaw: any, token: string) {
 }
 
 export const getProcedureAuditLogs = createServerFn({ method: "GET" })
-  .inputValidator(GetProcedureInput)
+  .inputValidator(GetProcedureAuditLogsInput)
   .handler(async (ctx) => {
     const headers = getRequestHeaders();
     const token = headers.get("authorization")?.replace("Bearer ", "");
