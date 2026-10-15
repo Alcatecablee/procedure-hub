@@ -31,6 +31,7 @@ function NewProcedure() {
   const [categoryId, setCategoryId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [ackRequired, setAckRequired] = useState(true);
+  const [ackAudience, setAckAudience] = useState<"staff" | "all_active_members">("staff");
   const [effectiveDate, setEffectiveDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
 
@@ -86,6 +87,7 @@ function NewProcedure() {
           effectiveDate: effectiveDate || undefined,
           expiryDate: expiryDate || undefined,
           acknowledgmentRequired: ackRequired,
+          acknowledgmentAudience: ackAudience,
           publish,
         },
       });
@@ -265,16 +267,35 @@ function NewProcedure() {
             />
           </div>
 
-          <div>
-            <label className="flex items-center gap-3">
+          <div className="space-y-4 pt-2">
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={ackRequired}
                 onChange={(e) => setAckRequired(e.target.checked)}
-                className="rounded border-input text-primary focus:ring-primary"
+                className="rounded border-input text-primary focus:ring-primary h-4 w-4"
               />
-              <span className="text-sm font-medium">Require staff acknowledgment</span>
+              <span className="text-sm font-medium">Require formal acknowledgment</span>
             </label>
+
+            {ackRequired && (
+              <div className="pl-7 max-w-md">
+                <label className="block eyebrow mb-1.5">Acknowledgment Audience</label>
+                <select
+                  value={ackAudience}
+                  onChange={(e) => setAckAudience(e.target.value as "staff" | "all_active_members")}
+                  className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+                >
+                  <option value="staff">Frontline Staff (Default for operational procedures)</option>
+                  <option value="all_active_members">All Active Roles (Company-wide policies)</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {ackAudience === "staff"
+                    ? "Only active frontline staff in the assigned department/scope are required to acknowledge. Management roles are excluded from the compliance denominator."
+                    : "All active organization roles (including owners, admins, and managers) in scope are required to acknowledge."}
+                </p>
+              </div>
+            )}
           </div>
         </form>
       </div>

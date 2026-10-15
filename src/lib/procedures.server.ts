@@ -53,6 +53,7 @@ const CreateProcedureInput = z.object({
   effectiveDate: z.string().optional().nullable(),
   expiryDate: z.string().optional().nullable(),
   acknowledgmentRequired: z.boolean().default(true),
+  acknowledgmentAudience: z.enum(["staff", "all_active_members"]).default("staff"),
   publish: z.boolean().default(false),
   departmentId: z.string().uuid().optional().nullable(),
 });
@@ -82,6 +83,7 @@ export async function createProcedureCore(dataRaw: any, token: string) {
     _ack_required: data.acknowledgmentRequired,
     _publish: data.publish,
     _department_id: data.departmentId,
+    _ack_audience: data.acknowledgmentAudience,
   });
 
   if (error) throw new Error(error.message);
@@ -99,6 +101,7 @@ const UpdateProcedureInput = z.object({
   effectiveDate: z.string().optional().nullable(),
   expiryDate: z.string().optional().nullable(),
   acknowledgmentRequired: z.boolean(),
+  acknowledgmentAudience: z.enum(["staff", "all_active_members"]).default("staff"),
   publish: z.boolean().default(false),
   expectedVersion: z.number(),
   departmentId: z.string().uuid().optional().nullable(),
@@ -120,7 +123,7 @@ export async function updateProcedureCore(dataRaw: any, token: string) {
   const { data: current } = await client
     .from("procedures")
     .select(
-      "id, title, summary, description, priority, category_id, effective_date, expiry_date, acknowledgment_required, department_id, status, version_number",
+      "id, title, summary, description, priority, category_id, effective_date, expiry_date, acknowledgment_required, acknowledgment_audience, department_id, status, version_number",
     )
     .eq("id", data.id)
     .eq("organization_id", data.organizationId)
@@ -142,6 +145,7 @@ export async function updateProcedureCore(dataRaw: any, token: string) {
       (current.effective_date || null) !== (data.effectiveDate || null) ||
       (current.expiry_date || null) !== (data.expiryDate || null) ||
       Boolean(current.acknowledgment_required) !== Boolean(data.acknowledgmentRequired) ||
+      (current.acknowledgment_audience || "staff") !== (data.acknowledgmentAudience || "staff") ||
       (current.department_id || null) !== (nextDeptId || null);
 
     if (!hasChanges && !data.publish) {
@@ -166,6 +170,7 @@ export async function updateProcedureCore(dataRaw: any, token: string) {
     _publish: data.publish,
     _department_id: data.departmentId || null,
     _expected_version: data.expectedVersion,
+    _ack_audience: data.acknowledgmentAudience,
   });
 
   if (error) throw new Error(error.message);
@@ -235,7 +240,7 @@ export const getProcedures = createServerFn({ method: "GET" })
   let query = client
     .from("procedures")
     .select(
-      "id, title, summary, status, priority, category_id, current_version_id, version_number, effective_date, expiry_date, acknowledgment_required, created_at, updated_at",
+      "id, title, summary, status, priority, category_id, current_version_id, version_number, effective_date, expiry_date, acknowledgment_required, acknowledgment_audience, created_at, updated_at",
     )
     .eq("organization_id", data.organizationId);
 

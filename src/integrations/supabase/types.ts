@@ -10,6 +10,7 @@ export type MemberRole = "owner" | "admin" | "manager" | "staff"; // viewer remo
 export type MemberStatus = "active" | "suspended" | "invited" | "removed";
 export type ProcedureStatus = "draft" | "active" | "archived" | "replaced";
 export type ProcedurePriority = "critical" | "high" | "medium" | "informational";
+export type AcknowledgmentAudience = "staff" | "all_active_members";
 export type ContentClassification =
   | "procedure"
   | "reference"
@@ -118,7 +119,8 @@ export type Procedure = {
   effective_date: string | null;
   expiry_date: string | null;
   acknowledgment_required: boolean;
-            department_id: string | null;
+  acknowledgment_audience: AcknowledgmentAudience;
+  department_id: string | null;
   source_type: SourcePlatform;
   source_reference: string | null;
   source_message_id: string | null;
@@ -144,7 +146,8 @@ export type ProcedureVersion = {
   effective_date: string | null;
   expiry_date: string | null;
   acknowledgment_required: boolean;
-            department_id: string | null;
+  acknowledgment_audience: AcknowledgmentAudience;
+  department_id: string | null;
   source_type: SourcePlatform | null;
   source_reference: string | null;
   change_summary: string | null;
@@ -369,10 +372,15 @@ export type Database = {
           organization_id: string;
           procedure_id: string;
           procedure_title: string;
+          procedure_priority: ProcedurePriority;
+          procedure_status: ProcedureStatus;
+          procedure_updated_at: string;
           current_version_id: string | null;
           current_version_number: number | null;
           procedure_department_id: string | null;
+          acknowledgment_audience: AcknowledgmentAudience;
           user_id: string;
+          member_role: MemberRole;
           member_department_id: string | null;
           latest_ack_version_id: string | null;
           latest_ack_date: string | null;
@@ -418,7 +426,8 @@ export type Database = {
           effective_date: string | null;
           expiry_date: string | null;
           acknowledgment_required: boolean;
-            department_id: string | null;
+          acknowledgment_audience: AcknowledgmentAudience;
+          department_id: string | null;
           created_at: string;
           updated_at: string;
           rank: number;
@@ -431,6 +440,7 @@ export type Database = {
       member_status: MemberStatus;
       procedure_status: ProcedureStatus;
       procedure_priority: ProcedurePriority;
+      acknowledgment_audience: AcknowledgmentAudience;
       content_classification: ContentClassification;
       source_platform: SourcePlatform;
       import_status: ImportStatus;

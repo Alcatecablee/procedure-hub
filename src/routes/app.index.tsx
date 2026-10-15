@@ -57,8 +57,7 @@ function Dashboard() {
         { data: active, error: err1 },
         { data: critical, error: err2 },
         { data: updated, error: err3 },
-        { data: all, error: err4 },
-        { data: myAcks, error: err5 },
+        { data: compData, error: err4 },
       ] = await Promise.all([
         supabase.from("procedures").select("id").eq("status", "active").eq("organization_id", orgId),
         supabase
@@ -75,42 +74,46 @@ function Dashboard() {
           .gte("updated_at", since)
           .order("updated_at", { ascending: false }),
         supabase
-          .from("procedures")
-          .select("id,title,priority,status,updated_at,acknowledgment_required,current_version_id")
-          .eq("status", "active")
-          .eq("acknowledgment_required", true)
-          .eq("organization_id", orgId),
-        supabase
-          .from("acknowledgments")
-          .select("procedure_id,procedure_version_id")
-          .eq("user_id", user.id)
-          .is("revoked_at", null),
+          .from("procedure_member_compliance")
+          .select(
+            "procedure_id,procedure_title,procedure_priority,procedure_status,procedure_updated_at,compliance_status",
+          )
+          .eq("organization_id", orgId)
+          .eq("user_id", user.id),
       ]);
 
-      if (err1 || err2 || err3 || err4 || err5) throw new Error("Failed to load dashboard data.");
+      if (err1 || err2 || err3 || err4) throw new Error("Failed to load dashboard data.");
 
-      const ackSet = new Set(
-        (myAcks ?? []).map((a) => `${a.procedure_id}:${a.procedure_version_id}`),
+      const obligations = compData ?? [];
+      const unackedObligations = obligations.filter(
+        (r) => r.compliance_status === "OUTSTANDING" || r.compliance_status === "REQUIRES_REACK",
       );
-      const unacked = (all ?? []).filter(
-        (p) => Boolean(p.current_version_id && !ackSet.has(`${p.id}:${p.current_version_id}`)),
-      );
+      const ackedCount = obligations.filter((r) => r.compliance_status === "ACKNOWLEDGED").length;
 
-      const totalRequired = all?.length ?? 0;
+      const totalRequired = obligations.length;
       const compliance =
         totalRequired === 0
           ? 100
-          : Math.round(((totalRequired - unacked.length) / totalRequired) * 100);
+          : Math.round((ackedCount / totalRequired) * 100);
+
+      const unackProcedures: ProcedureRow[] = unackedObligations.map((r) => ({
+        id: r.procedure_id,
+        title: r.procedure_title,
+        priority: (r.procedure_priority || "medium") as any,
+        status: (r.procedure_status || "active") as any,
+        updated_at: r.procedure_updated_at || new Date().toISOString(),
+        acknowledgment_required: true,
+      }));
 
       setStats({
         active: active?.length ?? 0,
         critical: critical?.length ?? 0,
         recentlyUpdated: updated?.length ?? 0,
-        unacknowledged: unacked.length,
+        unacknowledged: unackedObligations.length,
         compliance,
       });
       setRecent((updated ?? []).slice(0, 6));
-      setUnack(unacked.slice(0, 6));
+      setUnack(unackProcedures.slice(0, 6));
     } catch (e: any) {
       setError(e.message);
     } finally {

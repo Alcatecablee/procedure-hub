@@ -123,6 +123,7 @@ function ProcedureDetail() {
           priority: procedure.priority,
           categoryId: procedure.category_id || undefined,
           acknowledgmentRequired: procedure.acknowledgment_required,
+          acknowledgmentAudience: procedure.acknowledgment_audience || "staff",
           publish: true,
           expectedVersion: procedure.version_number,
         },
@@ -151,7 +152,15 @@ function ProcedureDetail() {
   const { procedure: p, versions, acknowledgedVersions } = data;
   const currentVer = versions.find((v: any) => v.id === p.current_version_id);
   const isAcked = currentVer ? acknowledgedVersions.includes(currentVer.id) : false;
-  const needsAck = p.acknowledgment_required && p.status === "active" && currentVer && !isAcked;
+
+  // Acknowledgment obligation based on explicit audience and department scoping
+  const isTargetAudience =
+    p.acknowledgment_audience === "all_active_members" || org?.role === "staff";
+  const isTargetDepartment =
+    !p.department_id || p.department_id === org?.departmentId;
+  const isObligated = isTargetAudience && isTargetDepartment;
+
+  const needsAck = p.acknowledgment_required && p.status === "active" && currentVer && !isAcked && isObligated;
 
   return (
     <div>
@@ -189,12 +198,17 @@ function ProcedureDetail() {
       />
 
       <div className="px-6 md:px-10 pt-8 md:pt-12 pb-16 max-w-4xl">
-        <div className="flex gap-4 mb-8">
+        <div className="flex flex-wrap items-center gap-4 mb-8">
           <StatusBadge value={p.status} />
           <PriorityBadge value={p.priority} />
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center">
             v{p.version_number}
           </div>
+          {p.acknowledgment_required && (
+            <div className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded border border-border bg-muted/40 text-muted-foreground">
+              Audience: {p.acknowledgment_audience === "all_active_members" ? "All Roles" : "Frontline Staff"}
+            </div>
+          )}
         </div>
 
         {isManager && p.status === "draft" && (

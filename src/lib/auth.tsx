@@ -12,7 +12,7 @@
  * role/membership were known, causing momentary privilege escalation
  * or incorrect redirects.
  */
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type {
@@ -108,9 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [unauthenticated, setUnauthenticated] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
+  const currentUserRef = useRef<User | null>(null);
+  currentUserRef.current = user;
+  const initializedRef = useRef(false);
+
   /** Full resolution: profile + membership. Sets loading = false at the end. */
-  const resolveAll = useCallback(async (s: Session | null) => {
-    setLoading(true);
+  const resolveAll = useCallback(async (s: Session | null, showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     if (!s?.user) {
       setUser(null);
       setSession(null);
@@ -148,12 +154,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Initial session check.
     void supabase.auth.getSession().then(({ data: { session: s } }) => {
-      void resolveAll(s);
+      initializedRef.current = true;
+      void resolveAll(s, true);
     });
 
     // Subscribe to auth state changes.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      void resolveAll(s);
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      // If it's a token refresh (e.g. triggered on window focus/tab switch),
+      // update the session in memory without triggering a full-screen reload.
+      if (event === "TOKEN_REFRESHED" && s) {
+        setSession(s);
+        return;
+      }
+
+      const isSameUser = !!(s?.user && currentUserRef.current && s.user.id === currentUserRef.current.id);
+      void resolveAll(s, !initializedRef.current || !isSameUser);
     });
 
     return () => sub.subscription.unsubscribe();

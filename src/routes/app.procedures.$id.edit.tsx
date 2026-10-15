@@ -33,6 +33,7 @@ function EditProcedure() {
   const [categoryId, setCategoryId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [ackRequired, setAckRequired] = useState(true);
+  const [ackAudience, setAckAudience] = useState<"staff" | "all_active_members">("staff");
   const [effectiveDate, setEffectiveDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [expectedVersion, setExpectedVersion] = useState(0);
@@ -94,6 +95,7 @@ function EditProcedure() {
       setCategoryId(p.category_id || "");
       setDepartmentId(p.department_id || "");
       setAckRequired(p.acknowledgment_required);
+      setAckAudience(p.acknowledgment_audience || "staff");
       setExpectedVersion(p.version_number);
       setEffectiveDate(p.effective_date ? p.effective_date.split("T")[0] : "");
       setExpiryDate(p.expiry_date ? p.expiry_date.split("T")[0] : "");
@@ -102,7 +104,15 @@ function EditProcedure() {
 
   const p = procData?.procedure;
   const hasUnsavedChanges = Boolean(
-    p && (title !== p.title || summary !== (p.summary || "") || description !== p.description),
+    p &&
+      (title !== p.title ||
+        summary !== (p.summary || "") ||
+        description !== p.description ||
+        priority !== p.priority ||
+        categoryId !== (p.category_id || "") ||
+        departmentId !== (p.department_id || "") ||
+        ackRequired !== p.acknowledgment_required ||
+        ackAudience !== (p.acknowledgment_audience || "staff")),
   );
 
   const updateMutation = useMutation({
@@ -127,6 +137,7 @@ function EditProcedure() {
           effectiveDate: effectiveDate || undefined,
           expiryDate: expiryDate || undefined,
           acknowledgmentRequired: ackRequired,
+          acknowledgmentAudience: ackAudience,
           expectedVersion,
           publish,
         },
@@ -309,16 +320,35 @@ function EditProcedure() {
             />
           </div>
 
-          <div>
-            <label className="flex items-center gap-3">
+          <div className="space-y-4 pt-2">
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={ackRequired}
                 onChange={(e) => setAckRequired(e.target.checked)}
                 className="rounded border-input text-primary focus:ring-primary h-4 w-4 transition-all"
               />
-              <span className="text-sm font-medium">Require staff acknowledgment</span>
+              <span className="text-sm font-medium">Require formal acknowledgment</span>
             </label>
+
+            {ackRequired && (
+              <div className="pl-7 max-w-md">
+                <label className="block eyebrow mb-1.5">Acknowledgment Audience</label>
+                <select
+                  value={ackAudience}
+                  onChange={(e) => setAckAudience(e.target.value as "staff" | "all_active_members")}
+                  className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm"
+                >
+                  <option value="staff">Frontline Staff (Default for operational procedures)</option>
+                  <option value="all_active_members">All Active Roles (Company-wide policies)</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {ackAudience === "staff"
+                    ? "Only active frontline staff in the assigned department/scope are required to acknowledge. Management roles are excluded from the compliance denominator."
+                    : "All active organization roles (including owners, admins, and managers) in scope are required to acknowledge."}
+                </p>
+              </div>
+            )}
           </div>
         </form>
       </div>
