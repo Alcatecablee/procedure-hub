@@ -21,6 +21,7 @@ function test(name: string, fn: () => void) {
 
 // ─── SQL VIEW SIMULATOR ──────────────────────────────────────────
 // Faithfully models the authoritative logic in `public.procedure_member_compliance`
+// from supabase/migrations/20261015000001_acknowledgment_audience.sql
 interface Procedure {
   id: string;
   title: string;
@@ -63,17 +64,24 @@ function simulateComplianceView(
       // DB Filter: m.status = 'active'
       if (m.status !== "active") continue;
 
+      // DB Filter: m.role IN ('owner', 'admin', 'manager', 'staff')
+      // Only roles authorized to acknowledge can be included; 'viewer' is strictly excluded
+      const isAuthorizedToAck = ["owner", "admin", "manager", "staff"].includes(m.role);
+      if (!isAuthorizedToAck) continue;
+
       // DB Filter: (p.department_id IS NULL OR p.department_id = m.department_id)
       if (p.department_id && p.department_id !== m.department_id) continue;
 
-      // DB Filter: (p.acknowledgment_audience = 'all_active_members' OR (p.acknowledgment_audience = 'staff' AND m.role = 'staff'))
+      // DB Filter: Audience Scoping
+      // (p.acknowledgment_audience = 'all_active_members' AND m.role IN ('owner', 'admin', 'manager', 'staff'))
+      // OR (p.acknowledgment_audience = 'staff' AND m.role = 'staff')
       const inAudience =
-        p.acknowledgment_audience === "all_active_members" ||
+        (p.acknowledgment_audience === "all_active_members" && isAuthorizedToAck) ||
         (p.acknowledgment_audience === "staff" && m.role === "staff");
 
       if (!inAudience) continue;
 
-      // Calculate status against acknowledgments
+      // Calculate status against non-revoked acknowledgments
       const userAcks = acknowledgments.filter(
         (a) => a.procedure_id === p.id && a.user_id === m.user_id && !a.revoked_at,
       );
@@ -150,8 +158,8 @@ test("1. Department-scoped, staff-only procedure requires acknowledgment from it
   assert.strictEqual(mgrPersonal.totalRequired, 0);
 });
 
-// ─── TEST 2: All Active Members Procedure ─────────────────────────
-test("2. An all_active_members procedure includes all eligible active roles within its scope", () => {
+// ─── TEST 2: All Active Members Procedure Includes Eligible Roles ──
+test("2. An all_active_members procedure includes all eligible active roles (owner, admin, manager, staff) within scope", () => {
   const deptA = "dept-customer-care";
   const members: Member[] = [
     { user_id: "owner-1", role: "owner", status: "active", department_id: null },
@@ -174,14 +182,38 @@ test("2. An all_active_members procedure includes all eligible active roles with
 
   const viewRows = simulateComplianceView([procedure], members, []);
   // adm-1, mgr-1, staff-1 belong to deptA; owner-1 has department_id null so excluded by dept filter
-  assert.strictEqual(viewRows.length, 3, "Denominator must include all 3 dept members across all roles");
+  assert.strictEqual(viewRows.length, 3, "Denominator must include all 3 dept members across authorized roles");
   assert.strictEqual(viewRows.some((r) => r.user_id === "adm-1"), true, "Admin is required");
   assert.strictEqual(viewRows.some((r) => r.user_id === "mgr-1"), true, "Manager is required");
   assert.strictEqual(viewRows.some((r) => r.user_id === "staff-1"), true, "Staff is required");
 });
 
-// ─── TEST 3: Cross-Department Exclusion ───────────────────────────
-test("3. A staff member in another department is excluded from a department-scoped procedure", () => {
+// ─── TEST 3: Viewer Role Is Excluded from All Procedures ───────────
+test("3. A member with 'viewer' role cannot acknowledge and is strictly excluded from compliance denominator", () => {
+  const members: Member[] = [
+    { user_id: "admin-1", role: "admin", status: "active", department_id: null },
+    { user_id: "staff-1", role: "staff", status: "active", department_id: null },
+    { user_id: "viewer-1", role: "viewer", status: "active", department_id: null },
+  ];
+
+  const procedureAll: Procedure = {
+    id: "proc-all-viewers-test",
+    title: "Company Wide Policy",
+    status: "active",
+    acknowledgment_required: true,
+    acknowledgment_audience: "all_active_members",
+    department_id: null,
+    current_version_id: "v1",
+    version_number: 1,
+  };
+
+  const viewRows = simulateComplianceView([procedureAll], members, []);
+  assert.strictEqual(viewRows.length, 2, "Only admin-1 and staff-1 can be included; viewer-1 must be excluded");
+  assert.strictEqual(viewRows.some((r) => r.user_id === "viewer-1"), false, "Viewer must not enter denominator");
+});
+
+// ─── TEST 4: Cross-Department Exclusion ───────────────────────────
+test("4. A staff member in another department is excluded from a department-scoped procedure", () => {
   const deptA = "dept-support";
   const deptB = "dept-finance";
   const members: Member[] = [
@@ -206,8 +238,8 @@ test("3. A staff member in another department is excluded from a department-scop
   assert.strictEqual(viewRows.some((r) => r.user_id === "staff-b"), false, "Staff in Dept B must be excluded");
 });
 
-// ─── TEST 4: Draft, Archived, and Non-Ack Procedures ──────────────
-test("4. Draft, archived, and non-acknowledgment-required procedures do not enter the denominator", () => {
+// ─── TEST 5: Draft, Archived, and Non-Ack Procedures ──────────────
+test("5. Draft, archived, and non-acknowledgment-required procedures do not enter the denominator", () => {
   const members: Member[] = [
     { user_id: "staff-1", role: "staff", status: "active", department_id: null },
   ];
@@ -252,8 +284,8 @@ test("4. Draft, archived, and non-acknowledgment-required procedures do not ente
   assert.strictEqual(op.overall.compliancePct, null);
 });
 
-// ─── TEST 5: Versioning and Re-Acknowledgment Lifecycle ───────────
-test("5. Acknowledging current version changes status; publishing newer version correctly requires re-acknowledgment", () => {
+// ─── TEST 6: Versioning and Re-Acknowledgment Lifecycle ───────────
+test("6. Acknowledging current version changes status; publishing newer version correctly requires re-acknowledgment", () => {
   const members: Member[] = [
     { user_id: "staff-1", role: "staff", status: "active", department_id: null },
   ];
@@ -300,8 +332,8 @@ test("5. Acknowledging current version changes status; publishing newer version 
   assert.strictEqual(rows[0].compliance_status, "ACKNOWLEDGED", "Must be ACKNOWLEDGED once v2 is signed");
 });
 
-// ─── TEST 6: Personal View vs Management Aggregates Consistency ───
-test("6. Personal acknowledgment view and management aggregates produce consistent counts", () => {
+// ─── TEST 7: Personal View vs Management Aggregates Consistency ───
+test("7. Personal acknowledgment view and management aggregates produce consistent counts", () => {
   const members: Member[] = [
     { user_id: "staff-1", role: "staff", status: "active", department_id: null },
     { user_id: "staff-2", role: "staff", status: "active", department_id: null },
@@ -354,34 +386,47 @@ test("6. Personal acknowledgment view and management aggregates produce consiste
   assert.strictEqual(totalPersonalOutstanding, mgmt.overall.outstanding);
 });
 
-// ─── TEST 7: Existing Tenants Retain Default Behavior ─────────────
-test("7. Existing tenants' procedures retain intended behavior after migration (defaults to staff)", () => {
+// ─── TEST 8: CTO Backfill Strategy - Zero Silent Dropping ─────────
+test("8. Corrected Backfill Policy: Existing procedures backfill to 'all_active_members' preserving all existing obligations", () => {
   const members: Member[] = [
     { user_id: "manager-lead", role: "manager", status: "active", department_id: null },
     { user_id: "agent-1", role: "staff", status: "active", department_id: null },
     { user_id: "agent-2", role: "staff", status: "active", department_id: null },
   ];
 
-  // Procedure created before migration, backfilled with default 'staff'
-  const backfilledProcedure: Procedure = {
-    id: "proc-legacy",
-    title: "Legacy Call Routing Procedure",
+  // Procedure created before migration: backfilled with 'all_active_members'
+  const backfilledExistingProcedure: Procedure = {
+    id: "proc-legacy-org-wide",
+    title: "Organization Incident Response Protocol",
     status: "active",
     acknowledgment_required: true,
-    acknowledgment_audience: "staff", // Default assigned by DB migration backfill
+    acknowledgment_audience: "all_active_members", // Preserved behavior per CTO mandate
     department_id: null,
     current_version_id: "ver-legacy-1",
     version_number: 1,
   };
 
-  const viewRows = simulateComplianceView([backfilledProcedure], members, []);
+  const viewRowsExisting = simulateComplianceView([backfilledExistingProcedure], members, []);
   
-  // Total required must be 2 (the 2 agents), excluding manager-lead
-  assert.strictEqual(viewRows.length, 2, "Backfill must scope legacy procedures to 2 staff members");
-  assert.strictEqual(viewRows.every((r) => r.member_role === "staff"), true, "All required members are staff");
-  
-  const op = processOperationalCompliance(viewRows);
-  assert.strictEqual(op.overall.totalRequired, 2);
+  // Total required must be 3 (manager-lead + 2 agents), ensuring zero obligations are dropped
+  assert.strictEqual(viewRowsExisting.length, 3, "Existing procedure retains obligations for all 3 members");
+  assert.strictEqual(viewRowsExisting.some((r) => r.user_id === "manager-lead"), true, "Manager obligation is preserved");
+
+  // New procedure created after migration: defaults to 'staff'
+  const newFrontlineProcedure: Procedure = {
+    id: "proc-new-frontline",
+    title: "Point-of-Sale Register Balancing",
+    status: "active",
+    acknowledgment_required: true,
+    acknowledgment_audience: "staff", // Default for new procedures
+    department_id: null,
+    current_version_id: "ver-new-1",
+    version_number: 1,
+  };
+
+  const viewRowsNew = simulateComplianceView([newFrontlineProcedure], members, []);
+  assert.strictEqual(viewRowsNew.length, 2, "New operational procedure only requires the 2 staff members");
+  assert.strictEqual(viewRowsNew.some((r) => r.user_id === "manager-lead"), false, "Manager is not obligated on new staff procedure");
 });
 
 console.log("\n==========================================================");

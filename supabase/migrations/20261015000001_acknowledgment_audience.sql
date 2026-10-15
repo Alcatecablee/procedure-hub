@@ -1,27 +1,55 @@
 -- Migration: 20261015000001_acknowledgment_audience.sql
--- Description: Introduce explicit acknowledgment_audience ('staff' vs 'all_active_members')
--- Authoritative compliance view filtering and atomic RPC updates.
+-- Description: Explicit acknowledgment_audience ('staff' vs 'all_active_members')
+-- Authoritative compliance view filtering, backward-compatible backfill, and clean RPC overloads.
 
--- 1. Create acknowledgment_audience enum type
+-- ─── 1. CREATE ENUM TYPE ───────────────────────────────────────────────────
 DO $$ BEGIN
   CREATE TYPE public.acknowledgment_audience AS ENUM ('staff', 'all_active_members');
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
 
--- 2. Add acknowledgment_audience column to procedures and procedure_versions
--- Backfill Policy: Defaults existing procedures to 'staff' so frontline operational procedures
--- do not inflate their denominator with managers, admins, or owners.
--- Organization-wide policies (e.g. InfoSec, Code of Conduct) can be updated to 'all_active_members'.
+-- ─── 2. ADD COLUMNS & APPLY BACKFILL ───────────────────────────────────────
 ALTER TABLE public.procedures
   ADD COLUMN IF NOT EXISTS acknowledgment_audience public.acknowledgment_audience NOT NULL DEFAULT 'staff';
 
 ALTER TABLE public.procedure_versions
   ADD COLUMN IF NOT EXISTS acknowledgment_audience public.acknowledgment_audience NOT NULL DEFAULT 'staff';
 
--- 3. Update atomic_create_procedure with _ack_audience parameter
-DROP FUNCTION IF EXISTS atomic_create_procedure;
-CREATE OR REPLACE FUNCTION atomic_create_procedure(
+-- BACKFILL POLICY (CTO Mandate):
+-- 1. All existing procedures in the database are explicitly backfilled to 'all_active_members'.
+--    This preserves exact historical compliance behavior (which previously evaluated all active
+--    roles within scope) and ensures no existing obligations are silently dropped.
+-- 2. All existing procedure version snapshots are likewise backfilled to 'all_active_members'
+--    for snapshot consistency with their parent procedures.
+-- 3. New procedures created going forward will default to 'staff' (frontline operational default).
+-- 4. An inventory view (procedure_audience_review_inventory) is provided below to identify all
+--    active procedures that require operational audience review.
+UPDATE public.procedures
+SET acknowledgment_audience = 'all_active_members'
+WHERE acknowledgment_audience = 'staff';
+
+UPDATE public.procedure_versions
+SET acknowledgment_audience = 'all_active_members'
+WHERE acknowledgment_audience = 'staff';
+
+-- ─── 3. CLEAN UP HISTORICAL RPC OVERLOADS ──────────────────────────────────
+-- PostgreSQL treats different parameter counts/types as distinct function overloads.
+-- To avoid ambiguous function calls or silently routing to obsolete functions,
+-- explicitly drop all previous signatures across past migrations.
+
+DROP FUNCTION IF EXISTS public.atomic_create_procedure(uuid, text, text, text, procedure_priority, uuid, date, date, boolean, boolean);
+DROP FUNCTION IF EXISTS public.atomic_create_procedure(uuid, text, text, text, procedure_priority, uuid, date, date, boolean, boolean, text);
+DROP FUNCTION IF EXISTS public.atomic_create_procedure(uuid, text, text, text, procedure_priority, uuid, date, date, boolean, boolean, uuid);
+DROP FUNCTION IF EXISTS public.atomic_create_procedure(uuid, text, text, text, procedure_priority, uuid, date, date, boolean, boolean, uuid, acknowledgment_audience);
+
+DROP FUNCTION IF EXISTS public.atomic_update_procedure(uuid, uuid, text, text, text, procedure_priority, uuid, date, date, boolean, integer, boolean);
+DROP FUNCTION IF EXISTS public.atomic_update_procedure(uuid, uuid, text, text, text, procedure_priority, uuid, date, date, boolean, integer, boolean, text);
+DROP FUNCTION IF EXISTS public.atomic_update_procedure(uuid, uuid, text, text, text, procedure_priority, uuid, date, date, boolean, integer, boolean, uuid);
+DROP FUNCTION IF EXISTS public.atomic_update_procedure(uuid, uuid, text, text, text, procedure_priority, uuid, date, date, boolean, integer, boolean, uuid, acknowledgment_audience);
+
+-- ─── 4. RECREATE atomic_create_procedure ───────────────────────────────────
+CREATE OR REPLACE FUNCTION public.atomic_create_procedure(
   _org_id UUID,
   _title TEXT,
   _summary TEXT,
@@ -100,9 +128,10 @@ BEGIN
 END;
 $function$;
 
--- 4. Update atomic_update_procedure with _ack_audience parameter
-DROP FUNCTION IF EXISTS atomic_update_procedure;
-CREATE OR REPLACE FUNCTION atomic_update_procedure(
+GRANT EXECUTE ON FUNCTION public.atomic_create_procedure(uuid, text, text, text, procedure_priority, uuid, date, date, boolean, boolean, uuid, acknowledgment_audience) TO authenticated, service_role;
+
+-- ─── 5. RECREATE atomic_update_procedure ───────────────────────────────────
+CREATE OR REPLACE FUNCTION public.atomic_update_procedure(
   _proc_id UUID,
   _org_id UUID,
   _title TEXT,
@@ -219,7 +248,9 @@ BEGIN
 END;
 $function$;
 
--- 5. Update authoritative procedure_member_compliance view
+GRANT EXECUTE ON FUNCTION public.atomic_update_procedure(uuid, uuid, text, text, text, procedure_priority, uuid, date, date, boolean, integer, boolean, uuid, acknowledgment_audience) TO authenticated, service_role;
+
+-- ─── 6. AUTHORITATIVE COMPLIANCE VIEW ──────────────────────────────────────
 DROP VIEW IF EXISTS public.procedure_member_compliance CASCADE;
 
 CREATE VIEW public.procedure_member_compliance WITH (security_invoker = true) AS
@@ -287,13 +318,41 @@ JOIN public.organization_members m
 WHERE p.status = 'active' 
   AND p.acknowledgment_required = TRUE
   AND p.current_version_id IS NOT NULL
-  -- Department Scope: If procedure has a department, only members of that dept are required.
-  -- If procedure is global (no dept), all active members are eligible.
+  -- Department Scope: If procedure has a department, only members of that dept are eligible.
+  -- If procedure is global (no dept), all active members in scope are eligible.
   AND (p.department_id IS NULL OR p.department_id = m.department_id)
-  -- Audience Scope:
-  -- If audience is 'staff', only active members with role 'staff' are required.
-  -- If audience is 'all_active_members', all active roles (owner, admin, manager, staff, viewer) within scope are required.
+  -- Acknowledgment Eligibility & Audience Scoping:
+  -- Only roles authorized to acknowledge ('owner', 'admin', 'manager', 'staff') can be obligated.
+  -- 'viewer' (and any unsupported roles) are strictly excluded from the compliance denominator.
+  AND m.role IN ('owner', 'admin', 'manager', 'staff')
   AND (
-    p.acknowledgment_audience = 'all_active_members' 
+    (p.acknowledgment_audience = 'all_active_members' AND m.role IN ('owner', 'admin', 'manager', 'staff'))
     OR (p.acknowledgment_audience = 'staff' AND m.role = 'staff')
   );
+
+GRANT SELECT ON public.procedure_member_compliance TO authenticated, service_role;
+
+-- ─── 7. AUDIENCE REVIEW INVENTORY VIEW ──────────────────────────────────────
+-- Provides an immediate audit inventory of active procedures requiring audience review
+CREATE OR REPLACE VIEW public.procedure_audience_review_inventory WITH (security_invoker = true) AS
+SELECT 
+  p.organization_id,
+  p.id AS procedure_id,
+  p.title,
+  p.status,
+  p.version_number,
+  p.department_id,
+  d.name AS department_name,
+  p.acknowledgment_required,
+  p.acknowledgment_audience,
+  p.created_at,
+  p.updated_at,
+  CASE 
+    WHEN p.acknowledgment_audience = 'all_active_members' THEN 'PENDING_OPERATIONAL_REVIEW'
+    ELSE 'CONFIRMED_STAFF_ONLY'
+  END AS review_status
+FROM public.procedures p
+LEFT JOIN public.departments d ON p.department_id = d.id
+WHERE p.status = 'active' AND p.acknowledgment_required = TRUE;
+
+GRANT SELECT ON public.procedure_audience_review_inventory TO authenticated, service_role;
