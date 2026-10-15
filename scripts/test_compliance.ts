@@ -99,5 +99,80 @@ test("Staff Compliance: Groups by status correctly", () => {
   assert.strictEqual(result.requiresReack.length, 0);
 });
 
+// Member Roster & Timestamp Semantics Tests
+test("Roster: Generates individual roster records with correct status and version tracking", () => {
+  const profilesMap = new Map([
+    ["u1", { email: "alice@example.com", full_name: "Alice Smith" }],
+    ["u2", { email: "bob@example.com", full_name: "Bob Jones" }],
+  ]);
+  const versionMap = new Map([["v1", 1]]);
+
+  const mockRosterData = [
+    {
+      procedure_id: "p1", procedure_title: "Fire Safety", current_version_id: "v2", current_version_number: 2,
+      user_id: "u1", member_role: "staff", member_department_id: "HR",
+      latest_ack_version_id: "v2", latest_ack_date: "2026-10-15T10:00:00Z", compliance_status: "ACKNOWLEDGED",
+    },
+    {
+      procedure_id: "p1", procedure_title: "Fire Safety", current_version_id: "v2", current_version_number: 2,
+      user_id: "u2", member_role: "staff", member_department_id: "IT",
+      latest_ack_version_id: "v1", latest_ack_date: "2026-10-01T10:00:00Z", compliance_status: "REQUIRES_REACK",
+    },
+    {
+      procedure_id: "p1", procedure_title: "Fire Safety", current_version_id: "v2", current_version_number: 2,
+      user_id: "u3", member_role: "staff", member_department_id: "IT",
+      latest_ack_version_id: null, latest_ack_date: null, compliance_status: "OUTSTANDING",
+    },
+  ];
+
+  const result = processOperationalCompliance(mockRosterData, undefined, profilesMap, false, versionMap);
+  assert.strictEqual(result.roster?.length, 3);
+
+  // u1: ACKNOWLEDGED current version v2
+  const r1 = result.roster?.find((r: any) => r.user_id === "u1");
+  assert.strictEqual(r1.member_name, "Alice Smith");
+  assert.strictEqual(r1.compliance_status, "ACKNOWLEDGED");
+  assert.strictEqual(r1.latest_ack_version_number, 2);
+  assert.strictEqual(r1.latest_ack_date, "2026-10-15T10:00:00Z");
+
+  // u2: REQUIRES_REACK (acknowledged v1, current is v2)
+  const r2 = result.roster?.find((r: any) => r.user_id === "u2");
+  assert.strictEqual(r2.member_name, "Bob Jones");
+  assert.strictEqual(r2.compliance_status, "REQUIRES_REACK");
+  assert.strictEqual(r2.latest_ack_version_number, 1); // correctly identified as v1
+  assert.strictEqual(r2.current_version_number, 2);
+  assert.strictEqual(r2.latest_ack_date, "2026-10-01T10:00:00Z");
+
+  // u3: OUTSTANDING (never acknowledged)
+  const r3 = result.roster?.find((r: any) => r.user_id === "u3");
+  assert.strictEqual(r3.compliance_status, "OUTSTANDING");
+  assert.strictEqual(r3.latest_ack_date, null);
+  assert.strictEqual(r3.latest_ack_version_number, null);
+});
+
+// Profile Lookup Failure Fallback Tests
+test("Roster: Handles profile query failure safely without dropping obligations", () => {
+  const mockRosterData = [
+    {
+      procedure_id: "p1", procedure_title: "Fire Safety", current_version_id: "v1", current_version_number: 1,
+      user_id: "u-missing-profile", member_role: "staff", member_department_id: "Ops",
+      compliance_status: "OUTSTANDING",
+    },
+  ];
+
+  // Simulated profile lookup failure (e.g. database error)
+  const resultFailedLookup = processOperationalCompliance(mockRosterData, undefined, undefined, true);
+  assert.strictEqual(resultFailedLookup.roster?.length, 1);
+  assert.strictEqual(resultFailedLookup.meta?.profileLookupFailed, true);
+  assert.strictEqual(resultFailedLookup.roster?.[0].member_name, "Team Member (Profile Unavailable)");
+
+  // Genuinely missing profile (lookup succeeded, but user has no profile row)
+  const emptyProfilesMap = new Map();
+  const resultMissingProfile = processOperationalCompliance(mockRosterData, undefined, emptyProfilesMap, false);
+  assert.strictEqual(resultMissingProfile.roster?.length, 1);
+  assert.strictEqual(resultMissingProfile.meta?.profileLookupFailed, false);
+  assert.strictEqual(resultMissingProfile.roster?.[0].member_name, "Team Member");
+});
+
 console.log(`\nTest Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);

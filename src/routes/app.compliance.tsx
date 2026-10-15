@@ -32,6 +32,9 @@ function Compliance() {
     byDepartment: any[];
     byMember?: any[];
     roster?: any[];
+    meta?: {
+      profileLookupFailed?: boolean;
+    };
   }
 
   const { data, isLoading, isError } = useQuery<OperationalComplianceResult>({
@@ -180,7 +183,7 @@ function Compliance() {
           <div>
             <h3 className="text-lg font-semibold text-foreground">Member Acknowledgments</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Individual procedure acknowledgment records across all active team members.
+              Individual procedure acknowledgment obligations across all active team members.
             </p>
           </div>
           <span className="font-mono text-xs text-muted-foreground">
@@ -188,98 +191,141 @@ function Compliance() {
           </span>
         </div>
 
-        <div className="bg-card border border-border rounded-sm overflow-hidden shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="px-4 py-3 font-medium">Team Member</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Department</th>
-                <th className="px-4 py-3 font-medium">Procedure</th>
-                <th className="px-4 py-3 font-medium text-center">Status</th>
-                <th className="px-4 py-3 font-medium text-right">Acknowledged At</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {!data.roster || data.roster.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                    No acknowledgment obligations recorded
-                  </td>
-                </tr>
-              ) : (
-                data.roster.map((row: any, idx: number) => {
-                  const isAcked = row.compliance_status === "ACKNOWLEDGED";
-                  const isReack = row.compliance_status === "REQUIRES_REACK";
-                  const isOut = row.compliance_status === "OUTSTANDING";
+        {data.meta?.profileLookupFailed && (
+          <div className="mb-4 px-3.5 py-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 rounded-sm text-xs">
+            Member profile resolution is currently degraded; display names or emails may temporarily show fallback identifiers. Compliance records and acknowledgment states remain fully tracked.
+          </div>
+        )}
 
-                  return (
-                    <tr
-                      key={`${row.user_id}-${row.procedure_id}-${idx}`}
-                      className="hover:bg-muted/30 transition-colors"
-                    >
-                      <td className="px-4 py-3 font-medium">
-                        <div className="text-foreground">{row.member_name}</div>
-                        {row.member_email && row.member_email !== row.member_name && (
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {row.member_email}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                          {row.member_role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {row.department_name}
-                      </td>
-                      <td className="px-4 py-3 font-medium">
-                        <Link
-                          to="/app/procedures/$id"
-                          params={{ id: row.procedure_id }}
-                          className="hover:underline text-foreground"
-                        >
-                          {row.procedure_title}
-                        </Link>
-                        <span className="font-mono text-[10.5px] text-muted-foreground ml-1.5">
-                          v{row.current_version_number}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {isAcked && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            Acknowledged
+        <div className="bg-card border border-border rounded-sm overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[720px]">
+              <thead className="bg-muted/50 border-b border-border">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Team Member</th>
+                  <th className="px-4 py-3 font-medium">Role</th>
+                  <th className="px-4 py-3 font-medium">Department</th>
+                  <th className="px-4 py-3 font-medium">Procedure</th>
+                  <th className="px-4 py-3 font-medium text-center">Status</th>
+                  <th className="px-4 py-3 font-medium text-right">Last Acknowledgment</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {!data.roster || data.roster.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      No acknowledgment obligations recorded
+                    </td>
+                  </tr>
+                ) : (
+                  data.roster.map((row: any) => {
+                    const isAcked = row.compliance_status === "ACKNOWLEDGED";
+                    const isReack = row.compliance_status === "REQUIRES_REACK";
+                    const isOut = row.compliance_status === "OUTSTANDING";
+
+                    return (
+                      <tr
+                        key={`${row.user_id}:${row.procedure_id}`}
+                        className="hover:bg-muted/30 transition-colors"
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          <div className="text-foreground">{row.member_name}</div>
+                          {row.member_email && row.member_email !== row.member_name && (
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {row.member_email}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {row.member_role}
                           </span>
-                        )}
-                        {isReack && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            Re-Ack Req
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">
+                          {row.department_name}
+                        </td>
+                        <td className="px-4 py-3 font-medium">
+                          <Link
+                            to="/app/procedures/$id"
+                            params={{ id: row.procedure_id }}
+                            className="hover:underline text-foreground"
+                          >
+                            {row.procedure_title}
+                          </Link>
+                          <span className="font-mono text-[10.5px] text-muted-foreground ml-1.5">
+                            v{row.current_version_number}
                           </span>
-                        )}
-                        {isOut && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-                            Outstanding
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
-                        {row.latest_ack_date
-                          ? new Date(row.latest_ack_date).toLocaleString(undefined, {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "-"}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {isAcked ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              Acknowledged
+                            </span>
+                          ) : isReack ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              Re-Ack Req
+                            </span>
+                          ) : isOut ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                              Outstanding
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20">
+                              {row.compliance_status || "Unknown"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {isAcked && row.latest_ack_date ? (
+                            <div>
+                              <div className="font-mono text-xs text-foreground">
+                                {new Date(row.latest_ack_date).toLocaleString(undefined, {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
+                              <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-sans mt-0.5 font-medium">
+                                Current version (v{row.current_version_number})
+                              </div>
+                            </div>
+                          ) : isReack && row.latest_ack_date ? (
+                            <div>
+                              <div className="font-mono text-xs text-foreground">
+                                {new Date(row.latest_ack_date).toLocaleString(undefined, {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
+                              <div className="text-[11px] text-amber-600 dark:text-amber-400 font-sans font-medium mt-0.5">
+                                {row.latest_ack_version_number
+                                  ? `v${row.latest_ack_version_number} (Superceded)`
+                                  : "Superceded (Older version)"}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground font-sans">
+                                Current v{row.current_version_number} unacknowledged
+                              </div>
+                            </div>
+                          ) : isOut ? (
+                            <span className="text-muted-foreground text-xs italic">
+                              Never acknowledged
+                            </span>
+                          ) : (
+                            <span className="font-mono text-xs text-muted-foreground">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     </div>

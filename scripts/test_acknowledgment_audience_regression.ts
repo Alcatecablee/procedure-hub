@@ -100,14 +100,23 @@ function simulateComplianceView(
         compliance_status = "OUTSTANDING";
       }
 
+      // Latest non-revoked ack
+      const latestAck = [...userAcks].sort(
+        (a, b) => new Date(b.acknowledged_at).getTime() - new Date(a.acknowledged_at).getTime(),
+      )[0];
+
       rows.push({
         procedure_id: p.id,
         procedure_title: p.title,
         procedure_department_id: p.department_id,
         acknowledgment_audience: p.acknowledgment_audience,
+        current_version_id: p.current_version_id,
+        current_version_number: p.version_number,
         user_id: m.user_id,
         member_role: m.role,
         member_department_id: m.department_id,
+        latest_ack_version_id: latestAck?.procedure_version_id || null,
+        latest_ack_date: latestAck?.acknowledged_at || null,
         compliance_status,
       });
     }
@@ -429,6 +438,158 @@ test("8. Corrected Backfill Policy: Existing procedures backfill to 'all_active_
   assert.strictEqual(viewRowsNew.some((r) => r.user_id === "manager-lead"), false, "Manager is not obligated on new staff procedure");
 });
 
+// ─── TEST 9: Revoked Acknowledgments Exclusion ───────────────────
+test("9. Revoked acknowledgments are excluded and do not satisfy compliance", () => {
+  const members: Member[] = [
+    { user_id: "staff-1", role: "staff", status: "active", department_id: null },
+  ];
+
+  const procedure: Procedure = {
+    id: "proc-safety",
+    title: "Warehouse Safety Protocols",
+    status: "active",
+    acknowledgment_required: true,
+    acknowledgment_audience: "staff",
+    department_id: null,
+    current_version_id: "ver-1",
+    version_number: 1,
+  };
+
+  // An acknowledgment exists for ver-1, but was revoked
+  const revokedAcks: Acknowledgment[] = [
+    {
+      id: "ack-revoked-1",
+      procedure_id: "proc-safety",
+      procedure_version_id: "ver-1",
+      user_id: "staff-1",
+      acknowledged_at: "2026-10-01T10:00:00Z",
+      revoked_at: "2026-10-05T12:00:00Z", // Revoked!
+    },
+  ];
+
+  const viewRows = simulateComplianceView([procedure], members, revokedAcks);
+  assert.strictEqual(viewRows.length, 1);
+  assert.strictEqual(viewRows[0].compliance_status, "OUTSTANDING", "Revoked acknowledgment must NOT satisfy compliance");
+  assert.strictEqual(viewRows[0].latest_ack_date, null);
+});
+
+// ─── TEST 10: Duplicate Acknowledgment Records Deduplication ───────
+test("10. Multiple acknowledgment records for the same member do not produce duplicate roster rows", () => {
+  const members: Member[] = [
+    { user_id: "staff-1", role: "staff", status: "active", department_id: null },
+  ];
+
+  const procedure: Procedure = {
+    id: "proc-1",
+    title: "Customer Support Standard",
+    status: "active",
+    acknowledgment_required: true,
+    acknowledgment_audience: "staff",
+    department_id: null,
+    current_version_id: "ver-2",
+    version_number: 2,
+  };
+
+  // Staff-1 has multiple historical acknowledgment records
+  const duplicateAcks: Acknowledgment[] = [
+    {
+      id: "ack-1",
+      procedure_id: "proc-1",
+      procedure_version_id: "ver-1",
+      user_id: "staff-1",
+      acknowledged_at: "2026-09-01T10:00:00Z",
+      revoked_at: null,
+    },
+    {
+      id: "ack-2",
+      procedure_id: "proc-1",
+      procedure_version_id: "ver-1",
+      user_id: "staff-1",
+      acknowledged_at: "2026-09-15T10:00:00Z",
+      revoked_at: null,
+    },
+    {
+      id: "ack-3",
+      procedure_id: "proc-1",
+      procedure_version_id: "ver-2",
+      user_id: "staff-1",
+      acknowledged_at: "2026-10-01T10:00:00Z",
+      revoked_at: null,
+    },
+  ];
+
+  const viewRows = simulateComplianceView([procedure], members, duplicateAcks);
+  assert.strictEqual(viewRows.length, 1, "Roster must contain exactly 1 row per member-procedure obligation");
+  assert.strictEqual(viewRows[0].compliance_status, "ACKNOWLEDGED");
+  assert.strictEqual(viewRows[0].latest_ack_date, "2026-10-01T10:00:00Z", "Must pick the most recent non-revoked acknowledgment");
+});
+
+// ─── TEST 11: Manager Departmental Scoping Boundary ────────────────
+test("11. Manager departmental scoping restricts query to the manager's assigned department", () => {
+  const members: Member[] = [
+    { user_id: "staff-dept-a", role: "staff", status: "active", department_id: "dept-a" },
+    { user_id: "staff-dept-b", role: "staff", status: "active", department_id: "dept-b" },
+  ];
+
+  const globalProcedure: Procedure = {
+    id: "proc-company-wide",
+    title: "Company-Wide Compliance",
+    status: "active",
+    acknowledgment_required: true,
+    acknowledgment_audience: "staff",
+    department_id: null, // Global
+    current_version_id: "ver-1",
+    version_number: 1,
+  };
+
+  const allRows = simulateComplianceView([globalProcedure], members, []);
+  assert.strictEqual(allRows.length, 2);
+
+  // When a manager of dept-a queries operational compliance, server filters by member_department_id = dept-a
+  const managerDeptARows = allRows.filter((r) => r.member_department_id === "dept-a");
+  assert.strictEqual(managerDeptARows.length, 1);
+  assert.strictEqual(managerDeptARows[0].user_id, "staff-dept-a");
+  assert.strictEqual(managerDeptARows.some((r) => r.member_department_id === "dept-b"), false, "Manager cannot view other departments");
+});
+
+// ─── TEST 12: Stable Obligation Keys ───────────────────────────────
+test("12. Obligation key (user_id:procedure_id) is unique and stable across all roster rows", () => {
+  const members: Member[] = [
+    { user_id: "u1", role: "staff", status: "active", department_id: null },
+    { user_id: "u2", role: "staff", status: "active", department_id: null },
+  ];
+
+  const procedures: Procedure[] = [
+    {
+      id: "p1",
+      title: "Proc 1",
+      status: "active",
+      acknowledgment_required: true,
+      acknowledgment_audience: "staff",
+      department_id: null,
+      current_version_id: "v1",
+      version_number: 1,
+    },
+    {
+      id: "p2",
+      title: "Proc 2",
+      status: "active",
+      acknowledgment_required: true,
+      acknowledgment_audience: "staff",
+      department_id: null,
+      current_version_id: "v1",
+      version_number: 1,
+    },
+  ];
+
+  const viewRows = simulateComplianceView(procedures, members, []);
+  assert.strictEqual(viewRows.length, 4);
+
+  const keys = viewRows.map((r) => `${r.user_id}:${r.procedure_id}`);
+  const uniqueKeys = new Set(keys);
+  assert.strictEqual(uniqueKeys.size, keys.length, "All obligation keys must be strictly unique");
+});
+
 console.log("\n==========================================================");
 console.log(`TEST SUMMARY: ${passed} passed, ${failed} failed.`);
 console.log("==========================================================");
@@ -436,3 +597,4 @@ console.log("==========================================================");
 if (failed > 0) {
   process.exit(1);
 }
+

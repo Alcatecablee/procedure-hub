@@ -16,6 +16,8 @@ export function processOperationalCompliance(
   data: any[],
   deptMap?: Record<string, string>,
   profilesMap?: Map<string, { email?: string | null; full_name?: string | null }>,
+  profileLookupFailed = false,
+  versionNumberMap?: Map<string, number>,
 ) {
   const totalRequired = data.length;
   const acknowledged = data.filter((d) => d.compliance_status === "ACKNOWLEDGED").length;
@@ -71,11 +73,21 @@ export function processOperationalCompliance(
     const deptId = curr.member_department_id || "unassigned";
     const deptName = deptId === "unassigned" ? "Unassigned" : (deptMap?.[deptId] || deptId);
 
+    const displayName =
+      profile?.full_name ||
+      profile?.email ||
+      curr.member_name ||
+      (profileLookupFailed ? "Team Member (Profile Unavailable)" : "Team Member");
+    const displayEmail =
+      profile?.email ||
+      curr.member_email ||
+      (profileLookupFailed ? "Unavailable" : uid);
+
     if (!acc[uid]) {
       acc[uid] = {
         user_id: uid,
-        email: profile?.email || curr.member_email || uid,
-        name: profile?.full_name || profile?.email || curr.member_name || "Team Member",
+        email: displayEmail,
+        name: displayName,
         role: curr.member_role || "staff",
         department_id: deptId,
         department_name: deptName,
@@ -99,16 +111,35 @@ export function processOperationalCompliance(
     const deptId = curr.member_department_id || "unassigned";
     const deptName = deptId === "unassigned" ? "Unassigned" : (deptMap?.[deptId] || deptId);
 
+    const displayName =
+      profile?.full_name ||
+      profile?.email ||
+      curr.member_name ||
+      (profileLookupFailed ? "Team Member (Profile Unavailable)" : "Team Member");
+    const displayEmail =
+      profile?.email ||
+      curr.member_email ||
+      (profileLookupFailed ? "Unavailable" : uid);
+
+    const ackVersionNumber =
+      curr.latest_ack_version_number ??
+      (curr.compliance_status === "ACKNOWLEDGED"
+        ? curr.current_version_number
+        : curr.latest_ack_version_id
+        ? versionNumberMap?.get(curr.latest_ack_version_id) || null
+        : null);
+
     return {
       user_id: uid,
-      member_name: profile?.full_name || profile?.email || curr.member_name || "Team Member",
-      member_email: profile?.email || curr.member_email || uid,
+      member_name: displayName,
+      member_email: displayEmail,
       member_role: curr.member_role || "staff",
       department_name: deptName,
       procedure_id: curr.procedure_id,
       procedure_title: curr.procedure_title,
       current_version_number: curr.current_version_number,
       latest_ack_version_id: curr.latest_ack_version_id,
+      latest_ack_version_number: ackVersionNumber,
       latest_ack_date: curr.latest_ack_date,
       compliance_status: curr.compliance_status,
     };
@@ -135,6 +166,9 @@ export function processOperationalCompliance(
       compliancePct: m.total === 0 ? null : Math.round((m.acknowledged / m.total) * 100),
     })),
     roster,
+    meta: {
+      profileLookupFailed,
+    },
   };
 }
 
@@ -197,17 +231,47 @@ export const getOperationalCompliance = createServerFn({ method: "GET" }).handle
   if (error) throw new Error(error.message);
 
   // Fetch member profiles for display names and emails
-  const userIds = Array.from(new Set((data || []).map((r) => r.user_id)));
+  const userIds = Array.from(new Set((data || []).map((r) => r.user_id).filter(Boolean)));
   let profilesMap = new Map<string, { email?: string | null; full_name?: string | null }>();
+  let profileLookupFailed = false;
+
   if (userIds.length > 0) {
-    const { data: profiles } = await svc
+    const { data: profiles, error: profilesError } = await svc
       .from("profiles")
       .select("id, email, full_name")
       .in("id", userIds);
-    if (profiles) {
+
+    if (profilesError) {
+      // Safely log on server without leaking sensitive info to client
+      console.error("[compliance.server] Failed to fetch member profiles:", profilesError.message);
+      profileLookupFailed = true;
+    } else if (profiles) {
       profilesMap = new Map(profiles.map((p) => [p.id, p]));
     }
   }
 
-  return processOperationalCompliance(data, deptMap, profilesMap);
+  // Fetch version numbers for older/superseded acknowledgments
+  const olderVersionIds = Array.from(
+    new Set(
+      (data || [])
+        .filter((r) => r.compliance_status === "REQUIRES_REACK")
+        .map((r) => r.latest_ack_version_id)
+        .filter((id): id is string => typeof id === "string" && Boolean(id)),
+    ),
+  );
+  let versionNumberMap = new Map<string, number>();
+  if (olderVersionIds.length > 0) {
+    const { data: versions, error: versionsError } = await svc
+      .from("procedure_versions")
+      .select("id, version_number")
+      .in("id", olderVersionIds);
+
+    if (versionsError) {
+      console.error("[compliance.server] Failed to fetch superseded version numbers:", versionsError.message);
+    } else if (versions) {
+      versionNumberMap = new Map(versions.map((v) => [v.id, v.version_number]));
+    }
+  }
+
+  return processOperationalCompliance(data, deptMap, profilesMap, profileLookupFailed, versionNumberMap);
 });
