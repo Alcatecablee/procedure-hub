@@ -7,9 +7,8 @@ export const getRouter = () => {
     defaultOptions: {
       queries: {
         refetchOnWindowFocus: true,
-        refetchOnMount: true,
         refetchOnReconnect: true,
-        staleTime: 0,
+        staleTime: 1000 * 30, // 30-second freshness window; mutation invalidations provide immediate freshness
       },
     },
   });
