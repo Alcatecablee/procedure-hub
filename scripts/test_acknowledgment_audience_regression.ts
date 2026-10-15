@@ -100,10 +100,18 @@ function simulateComplianceView(
         compliance_status = "OUTSTANDING";
       }
 
-      // Latest non-revoked ack
-      const latestAck = [...userAcks].sort(
-        (a, b) => new Date(b.acknowledged_at).getTime() - new Date(a.acknowledged_at).getTime(),
-      )[0];
+      const currentVersionAck = userAcks.find(
+        (a) => a.procedure_version_id === p.current_version_id,
+      );
+
+      // Precedence: When current version is acknowledged, the timestamp must strictly be the
+      // current version's acknowledgment timestamp (even if an older version has an anomalous newer date).
+      // If not current, use the newest historical acknowledgment.
+      const selectedAck = hasAckedCurrent
+        ? currentVersionAck
+        : [...userAcks].sort(
+            (a, b) => new Date(b.acknowledged_at).getTime() - new Date(a.acknowledged_at).getTime(),
+          )[0];
 
       rows.push({
         procedure_id: p.id,
@@ -115,8 +123,8 @@ function simulateComplianceView(
         user_id: m.user_id,
         member_role: m.role,
         member_department_id: m.department_id,
-        latest_ack_version_id: latestAck?.procedure_version_id || null,
-        latest_ack_date: latestAck?.acknowledged_at || null,
+        latest_ack_version_id: selectedAck?.procedure_version_id || null,
+        latest_ack_date: selectedAck?.acknowledged_at || null,
         compliance_status,
       });
     }
@@ -590,6 +598,62 @@ test("12. Obligation key (user_id:procedure_id) is unique and stable across all 
   assert.strictEqual(uniqueKeys.size, keys.length, "All obligation keys must be strictly unique");
 });
 
+// ─── TEST 13: Acknowledgment Consistency (Current vs Older Timestamp)
+test("13. Acknowledgment consistency: An ACKNOWLEDGED record displays the current version's timestamp even if an older version has an anomalous newer timestamp", () => {
+  const members: Member[] = [
+    { user_id: "staff-1", role: "staff", status: "active", department_id: null },
+  ];
+
+  const procedure: Procedure = {
+    id: "proc-1",
+    title: "Equipment Calibration Procedure",
+    status: "active",
+    acknowledgment_required: true,
+    acknowledgment_audience: "staff",
+    department_id: null,
+    current_version_id: "ver-2",
+    version_number: 2,
+  };
+
+  // Suppose an anomalous historical acknowledgment for ver-1 has a newer timestamp (e.g. data correction or clock drift)
+  // than the ver-2 acknowledgment.
+  const acks: Acknowledgment[] = [
+    {
+      id: "ack-v2-valid",
+      procedure_id: "proc-1",
+      procedure_version_id: "ver-2", // Current version
+      user_id: "staff-1",
+      acknowledged_at: "2026-10-10T08:00:00Z",
+      revoked_at: null,
+    },
+    {
+      id: "ack-v1-anomalous",
+      procedure_id: "proc-1",
+      procedure_version_id: "ver-1", // Older version with anomalous newer timestamp
+      user_id: "staff-1",
+      acknowledged_at: "2026-10-15T12:00:00Z",
+      revoked_at: null,
+    },
+  ];
+
+  const viewRows = simulateComplianceView([procedure], members, acks);
+  assert.strictEqual(viewRows.length, 1);
+  assert.strictEqual(viewRows[0].compliance_status, "ACKNOWLEDGED");
+
+  // The timestamp must strictly be the timestamp of ver-2 (the current version being satisfied),
+  // NEVER the historical ver-1 timestamp!
+  assert.strictEqual(
+    viewRows[0].latest_ack_version_id,
+    "ver-2",
+    "Must select the current version's acknowledgment ID",
+  );
+  assert.strictEqual(
+    viewRows[0].latest_ack_date,
+    "2026-10-10T08:00:00Z",
+    "Must select the current version's acknowledgment timestamp",
+  );
+});
+
 console.log("\n==========================================================");
 console.log(`TEST SUMMARY: ${passed} passed, ${failed} failed.`);
 console.log("==========================================================");
@@ -597,4 +661,5 @@ console.log("==========================================================");
 if (failed > 0) {
   process.exit(1);
 }
+
 

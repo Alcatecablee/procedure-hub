@@ -285,14 +285,17 @@ SELECT
   m.user_id,
   m.role AS member_role,
   m.department_id AS member_department_id,
-  -- Find the most recent non-revoked acknowledgment for this specific procedure and user
+  -- Find the most recent non-revoked acknowledgment for this specific procedure and user.
+  -- Current version acknowledgment takes strict precedence over historical version timestamps.
   (
     SELECT a.procedure_version_id 
     FROM public.acknowledgments a 
     WHERE a.procedure_id = p.id 
       AND a.user_id = m.user_id 
       AND a.revoked_at IS NULL 
-    ORDER BY a.acknowledged_at DESC 
+    ORDER BY 
+      CASE WHEN a.procedure_version_id = p.current_version_id THEN 0 ELSE 1 END,
+      a.acknowledged_at DESC 
     LIMIT 1
   ) AS latest_ack_version_id,
   (
@@ -301,7 +304,9 @@ SELECT
     WHERE a.procedure_id = p.id 
       AND a.user_id = m.user_id 
       AND a.revoked_at IS NULL 
-    ORDER BY a.acknowledged_at DESC 
+    ORDER BY 
+      CASE WHEN a.procedure_version_id = p.current_version_id THEN 0 ELSE 1 END,
+      a.acknowledged_at DESC 
     LIMIT 1
   ) AS latest_ack_date,
   -- Calculate authoritative status

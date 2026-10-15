@@ -278,13 +278,17 @@ function Compliance() {
                         <td className="px-4 py-3 text-right">
                           {isAcked && row.latest_ack_date ? (
                             <div>
-                              <div className="font-mono text-xs text-foreground">
+                              <div
+                                className="font-mono text-xs text-foreground"
+                                title={`${new Date(row.latest_ack_date).toISOString()} (UTC)`}
+                              >
                                 {new Date(row.latest_ack_date).toLocaleString(undefined, {
                                   year: "numeric",
                                   month: "short",
                                   day: "numeric",
                                   hour: "2-digit",
                                   minute: "2-digit",
+                                  timeZoneName: "short",
                                 })}
                               </div>
                               <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-sans mt-0.5 font-medium">
@@ -293,19 +297,23 @@ function Compliance() {
                             </div>
                           ) : isReack && row.latest_ack_date ? (
                             <div>
-                              <div className="font-mono text-xs text-foreground">
+                              <div
+                                className="font-mono text-xs text-foreground"
+                                title={`${new Date(row.latest_ack_date).toISOString()} (UTC)`}
+                              >
                                 {new Date(row.latest_ack_date).toLocaleString(undefined, {
                                   year: "numeric",
                                   month: "short",
                                   day: "numeric",
                                   hour: "2-digit",
                                   minute: "2-digit",
+                                  timeZoneName: "short",
                                 })}
                               </div>
                               <div className="text-[11px] text-amber-600 dark:text-amber-400 font-sans font-medium mt-0.5">
                                 {row.latest_ack_version_number
-                                  ? `v${row.latest_ack_version_number} (Superceded)`
-                                  : "Superceded (Older version)"}
+                                  ? `v${row.latest_ack_version_number} (Superseded)`
+                                  : "Superseded (Older version)"}
                               </div>
                               <div className="text-[10px] text-muted-foreground font-sans">
                                 Current v{row.current_version_number} unacknowledged
