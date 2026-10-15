@@ -4,7 +4,7 @@ import { useAuth, useIsManager } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { createProcedure, getCategories, getDepartments } from "@/lib/procedures.server";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/procedures/new")({
@@ -15,6 +15,7 @@ function NewProcedure() {
   const { org } = useAuth();
   const isManager = useIsManager();
   const navigate = useNavigate();
+  const isNavigatingAfterSave = useRef(false);
 
   useEffect(() => {
     if (org && !isManager) {
@@ -93,6 +94,7 @@ function NewProcedure() {
       });
     },
     onSuccess: (data) => {
+      isNavigatingAfterSave.current = true;
       navigate({ to: `/app/procedures/${data.procedureId}` });
     },
     onError: (e) => toast.error((e as Error).message),
@@ -100,6 +102,7 @@ function NewProcedure() {
 
   useBlocker({
     shouldBlockFn: () => {
+      if (isNavigatingAfterSave.current) return false;
       if (!hasUnsavedChanges || createMutation.isSuccess) return false;
       return !window.confirm("You have unsaved changes. Are you sure you want to leave?");
     },
