@@ -102,17 +102,40 @@ export const getTeamMembers = createServerFn({ method: "GET" }).handler(async ()
   if (!members || members.length === 0) return [];
 
   const userIds = members.map((m) => m.user_id);
-  const { data: profiles } = await svc
-    .from("profiles")
-    .select("id, email, full_name")
-    .in("id", userIds);
+  const memberIds = members.map((m) => m.id);
+  const [{ data: profiles }, { data: onboardingAudits }] = await Promise.all([
+    svc.from("profiles").select("id, email, full_name").in("id", userIds),
+    svc
+      .from("audit_logs")
+      .select("entity_id, metadata, created_at")
+      .eq("organization_id", ctx.orgId)
+      .eq("entity_type", "organization_members")
+      .eq("event_type", "member_joined")
+      .in("entity_id", memberIds)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const profilesMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+  const requestedDeptMap = new Map<string, { id: string | null; name: string | null }>();
+  for (const row of onboardingAudits || []) {
+    const meta = row.metadata as Record<string, any> | null;
+    if (row.entity_id && meta?.action === "onboarding_completed" && !requestedDeptMap.has(row.entity_id)) {
+      requestedDeptMap.set(row.entity_id, {
+        id: meta.requested_department_id || null,
+        name: meta.requested_department_name || null,
+      });
+    }
+  }
 
-  return members.map((m) => ({
-    ...m,
-    profiles: profilesMap.get(m.user_id) || null,
-  }));
+  return members.map((m) => {
+    const reqDept = !m.department_id ? requestedDeptMap.get(m.id) : null;
+    return {
+      ...m,
+      profiles: profilesMap.get(m.user_id) || null,
+      requested_department_id: reqDept?.id || null,
+      requested_department_name: reqDept?.name || null,
+    };
+  });
 });
 
 export const getPendingInvitations = createServerFn({ method: "GET" }).handler(async () => {
@@ -474,8 +497,20 @@ export async function updateMemberRoleCore(dataRaw: any, token: string) {
   const updates: any = {};
   if (data.role) updates.role = data.role as MemberRole;
   if (data.designation !== undefined) updates.designation = data.designation;
-  // FIX-3: was incorrectly referencing data.department (removed column); now uses data.department_id.
-  if (data.department_id !== undefined) updates.department_id = data.department_id;
+  if (data.department_id !== undefined) {
+    if (data.department_id !== null) {
+      const { data: dept } = await svc
+        .from("departments")
+        .select("id")
+        .eq("id", data.department_id)
+        .eq("organization_id", ctx.orgId)
+        .maybeSingle();
+      if (!dept) {
+        throw new Error("Forbidden: Selected department does not exist in your organization.");
+      }
+    }
+    updates.department_id = data.department_id;
+  }
 
   const { error } = await svc
     .from("organization_members")

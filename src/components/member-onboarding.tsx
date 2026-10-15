@@ -11,8 +11,8 @@ export function MemberOnboarding() {
   const [fullName, setFullName] = useState(
     profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || ""
   );
-  const [designation, setDesignation] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
+  const [designation, setDesignation] = useState(org?.designation || "");
+  const [departmentId, setDepartmentId] = useState(org?.departmentId || "");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -20,6 +20,15 @@ export function MemberOnboarding() {
       setFullName(profile.full_name);
     }
   }, [profile?.full_name, fullName]);
+
+  useEffect(() => {
+    if (org?.designation && !designation) {
+      setDesignation(org.designation);
+    }
+    if (org?.departmentId && !departmentId) {
+      setDepartmentId(org.departmentId);
+    }
+  }, [org?.designation, org?.departmentId, designation, departmentId]);
 
   const { data: departments = [], isLoading: loadingDepts } = useQuery({
     queryKey: ["departments"],
@@ -33,12 +42,23 @@ export function MemberOnboarding() {
     },
   });
 
+  const hasAdminAssignedDept = Boolean(org?.departmentId);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!designation.trim()) {
+    if (fullName.trim().length < 2) {
+      toast.error("Please enter your full name (at least 2 characters).");
+      return;
+    }
+    if (designation.trim().length < 2) {
       toast.error("Please enter your job title / designation.");
       return;
     }
+    if (!hasAdminAssignedDept && !departmentId) {
+      toast.error("Please select your primary department or Global / General scope.");
+      return;
+    }
+
     setBusy(true);
     try {
       const {
@@ -46,18 +66,28 @@ export function MemberOnboarding() {
       } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Not authenticated");
 
-      const chosenDept = departmentId === "__GLOBAL__" || !departmentId ? null : departmentId;
+      const isGlobal = departmentId === "__GLOBAL__";
+      const chosenDept = isGlobal || !departmentId ? null : departmentId;
 
-      await completeMemberOnboarding({
+      const res = await completeMemberOnboarding({
         data: {
           fullName: fullName.trim(),
           designation: designation.trim(),
-          departmentId: chosenDept,
+          requestedDepartmentId: hasAdminAssignedDept ? null : chosenDept,
+          isGlobal,
         },
         headers: { authorization: `Bearer ${session.access_token}` },
       });
 
-      toast.success("Profile updated! Welcome aboard.");
+      if (res?.requiresAdminDepartmentApproval) {
+        toast.success(
+          `Profile saved! Your request to join ${res.requestedDepartmentName || "the selected department"} has been submitted for administrator approval.`
+        );
+      } else {
+        toast.success("Profile updated! Welcome aboard.");
+      }
+
+      await supabase.auth.refreshSession();
       await refreshMembership();
     } catch (err) {
       toast.error((err as Error).message);
@@ -75,8 +105,8 @@ export function MemberOnboarding() {
 
         <h1 className="font-display text-4xl mb-2">Complete your profile</h1>
         <p className="text-sm text-muted-foreground mb-8">
-          You've joined as a team member. Assign your department and role to unlock the procedures and
-          compliance tasks relevant to your work.
+          Confirm your full name, job title, and department scope so we can configure your procedure ledger and
+          compliance responsibilities.
         </p>
 
         <form onSubmit={submit} className="space-y-5 bg-card border border-border p-6 rounded-sm shadow-sm">
@@ -88,6 +118,7 @@ export function MemberOnboarding() {
               onChange={(e) => setFullName(e.target.value)}
               placeholder="e.g. Zinhle Mokoena"
               required
+              minLength={2}
               disabled={busy}
               className="w-full bg-background border border-input px-3 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
             />
@@ -101,6 +132,7 @@ export function MemberOnboarding() {
               onChange={(e) => setDesignation(e.target.value)}
               placeholder="e.g. Call Center Consultant, Frontline Agent"
               required
+              minLength={2}
               disabled={busy}
               className="w-full bg-background border border-input px-3 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
             />
@@ -110,11 +142,14 @@ export function MemberOnboarding() {
           </div>
 
           <div>
-            <label className="eyebrow block mb-1.5">Assigned Department</label>
+            <label className="eyebrow block mb-1.5">
+              {hasAdminAssignedDept ? "Assigned Department" : "Requested Department"}
+            </label>
             <select
-              value={departmentId}
+              value={hasAdminAssignedDept ? (org?.departmentId || "") : departmentId}
               onChange={(e) => setDepartmentId(e.target.value)}
-              disabled={busy || loadingDepts}
+              required={!hasAdminAssignedDept}
+              disabled={busy || loadingDepts || hasAdminAssignedDept}
               className="w-full bg-background border border-input px-3 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
             >
               <option value="">Select your department...</option>
@@ -123,16 +158,20 @@ export function MemberOnboarding() {
                   {dept.name}
                 </option>
               ))}
-              <option value="__GLOBAL__">Global / General (Company-wide)</option>
+              {!hasAdminAssignedDept && (
+                <option value="__GLOBAL__">Global / General (Company-wide only)</option>
+              )}
             </select>
             <p className="mt-1 text-xs text-muted-foreground">
-              Procedures scoped to this department will automatically appear in your ledger and compliance roster.
+              {hasAdminAssignedDept
+                ? "Your department was pre-assigned by an administrator."
+                : "Global company-wide procedures are available immediately. Department-scoped procedures unlock once an administrator approves your department assignment."}
             </p>
           </div>
 
           <button
             type="submit"
-            disabled={busy || !designation.trim()}
+            disabled={busy || designation.trim().length < 2 || (!hasAdminAssignedDept && !departmentId)}
             className="w-full bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium rounded-sm hover:bg-primary/90 disabled:opacity-60 transition-colors mt-2"
           >
             {busy ? "Saving setup..." : "Complete Setup & View Procedures"}
@@ -153,3 +192,4 @@ export function MemberOnboarding() {
     </div>
   );
 }
+

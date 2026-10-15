@@ -125,10 +125,14 @@ function ProceduresList() {
               {org?.role === "staff" && !org?.departmentId && (
                 <div className="p-4 bg-muted/40 border border-border rounded-sm max-w-lg">
                   <div className="font-medium text-xs text-foreground mb-1">
-                    Department Assignment Needed
+                    {org.requestedDepartmentName
+                      ? `Pending Department Approval (${org.requestedDepartmentName})`
+                      : "Department Assignment Needed"}
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    You are not currently assigned to a department. Operational procedures assigned to specific departments (such as Call Center Gaap) require department membership. Please contact your administrator or manager to assign your department.
+                    {org.requestedDepartmentName
+                      ? `Your onboarding request for "${org.requestedDepartmentName}" is awaiting administrator approval. Once approved on the Team page, procedures scoped to that department will automatically appear here.`
+                      : "You are not currently assigned to a department. Operational procedures assigned to specific departments require department membership. Please contact your administrator to assign your department."}
                   </p>
                 </div>
               )}

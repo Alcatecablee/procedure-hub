@@ -203,86 +203,226 @@ export const getMyMembership = createServerFn({ method: "GET" }).handler(async (
   return data ?? null;
 });
 
-const CompleteMemberOnboardingInput = z.object({
-  fullName: z.string().min(1).max(100).optional(),
-  designation: z.string().min(1).max(100).optional(),
+export const CompleteMemberOnboardingInput = z.object({
+  fullName: z.string().trim().min(2, "Full name must be at least 2 characters").max(100).optional(),
+  designation: z.string().trim().min(2, "Job title / designation is required").max(100),
+  requestedDepartmentId: z.string().uuid().nullable().optional(),
+  // Accepted for backwards-compatible payload shape, but always treated as a department request (never direct assignment)
   departmentId: z.string().uuid().nullable().optional(),
+  isGlobal: z.boolean().optional(),
 });
+
+export interface CompleteMemberOnboardingOptions {
+  /** Fault-injection hook for integration tests to verify audit failure rollback */
+  _forceAuditEventTypeForTest?: string;
+}
+
+export async function completeMemberOnboardingCore(
+  dataRaw: unknown,
+  token: string,
+  options?: CompleteMemberOnboardingOptions
+) {
+  const data = CompleteMemberOnboardingInput.parse(dataRaw);
+  if (!token) throw new Error("Unauthorized");
+
+  const userClient = getUserClient(token);
+  const {
+    data: { user },
+    error: userErr,
+  } = await userClient.auth.getUser();
+  if (userErr || !user) throw new Error("Unauthorized");
+
+  const svc = getServiceClient();
+
+  // 1. Fetch active membership and current profile snapshot before any writes
+  const [{ data: member, error: memberLookupErr }, { data: currentProfile }] = await Promise.all([
+    svc
+      .from("organization_members")
+      .select("id, organization_id, user_id, role, department_id, designation, invited_by")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle(),
+    svc.from("profiles").select("id, full_name").eq("id", user.id).maybeSingle(),
+  ]);
+
+  if (memberLookupErr || !member) {
+    throw new Error("No active organization membership found");
+  }
+
+  if (member.role === "owner" || member.role === "admin") {
+    throw new Error("Forbidden: Owners and administrators do not use self-service member onboarding");
+  }
+
+  // 2. Prevent repeat onboarding or post-onboarding department/designation tampering
+  const existingOnboardedOrgs =
+    (user.app_metadata?.onboarded_orgs as Record<string, any> | undefined) || {};
+  const hasAppMetaOnboarded = Boolean(existingOnboardedOrgs[member.organization_id]);
+
+  const { data: existingOnboardingAudits } = await svc
+    .from("audit_logs")
+    .select("id, metadata")
+    .eq("organization_id", member.organization_id)
+    .eq("entity_type", "organization_members")
+    .eq("entity_id", member.id)
+    .eq("event_type", "member_joined");
+
+  const hasAuditOnboarded = (existingOnboardingAudits || []).some(
+    (row) => (row.metadata as Record<string, any> | null)?.action === "onboarding_completed"
+  );
+
+  const isAlreadyFullyConfigured = Boolean(member.department_id && member.designation);
+
+  if (hasAppMetaOnboarded || hasAuditOnboarded || isAlreadyFullyConfigured) {
+    throw new Error(
+      "Forbidden: Member onboarding has already been completed. Contact an administrator to change your department or role."
+    );
+  }
+
+  // 3. Validate department request BEFORE performing any writes
+  const targetRequestedDeptId =
+    data.requestedDepartmentId !== undefined
+      ? data.requestedDepartmentId
+      : data.departmentId !== undefined
+        ? data.departmentId
+        : null;
+
+  let requestedDeptName: string | null = null;
+  if (targetRequestedDeptId) {
+    const { data: dept } = await svc
+      .from("departments")
+      .select("id, name")
+      .eq("id", targetRequestedDeptId)
+      .eq("organization_id", member.organization_id)
+      .maybeSingle();
+
+    if (!dept) {
+      throw new Error("Forbidden: Selected department does not exist in your organization");
+    }
+    requestedDeptName = dept.name;
+  } else if (!member.department_id && !data.isGlobal) {
+    throw new Error("Validation failed: Department selection is required");
+  }
+
+  const previousFullName = currentProfile?.full_name ?? null;
+  const previousDesignation = member.designation ?? null;
+  let profileUpdated = false;
+  let memberUpdated = false;
+
+  try {
+    // 4. Update profile full_name if provided
+    if (data.fullName) {
+      const { error: profErr } = await svc
+        .from("profiles")
+        .update({ full_name: data.fullName })
+        .eq("id", user.id);
+      if (profErr) {
+        throw new Error(`Failed to update profile: ${profErr.message}`);
+      }
+      profileUpdated = true;
+    }
+
+    // 5. Update organization_members designation ONLY.
+    // SECURITY INVARIANT: Never allow self-service onboarding to write organization_members.department_id.
+    // Trusted department assignment is strictly administrator-controlled via updateMemberRoleCore.
+    const { error: updateErr } = await svc
+      .from("organization_members")
+      .update({
+        designation: data.designation,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", member.id)
+      .eq("organization_id", member.organization_id);
+
+    if (updateErr) {
+      throw new Error(`Failed to update membership: ${updateErr.message}`);
+    }
+    memberUpdated = true;
+
+    // 6. Write immutable audit log using valid audit_action enum ('member_joined')
+    const eventType = (options?._forceAuditEventTypeForTest || "member_joined") as any;
+    const { data: insertedAudit, error: auditErr } = await svc
+      .from("audit_logs")
+      .insert({
+        organization_id: member.organization_id,
+        actor_id: user.id,
+        event_type: eventType,
+        entity_type: "organization_members",
+        entity_id: member.id,
+        metadata: {
+          action: "onboarding_completed",
+          designation: data.designation,
+          existing_department_id: member.department_id,
+          requested_department_id: member.department_id ? null : targetRequestedDeptId,
+          requested_department_name: member.department_id ? null : requestedDeptName,
+          is_global_request: Boolean(data.isGlobal),
+        } as any,
+      })
+      .select("id")
+      .single();
+
+    if (auditErr || !insertedAudit) {
+      throw new Error(
+        `Audit log insertion failed (${auditErr?.message || "unknown error"})`
+      );
+    }
+
+    // 7. Persist onboarding completion state in server-controlled app_metadata
+    const { error: metaErr } = await svc.auth.admin.updateUserById(user.id, {
+      app_metadata: {
+        ...user.app_metadata,
+        onboarded_orgs: {
+          ...existingOnboardedOrgs,
+          [member.organization_id]: {
+            onboarded_at: new Date().toISOString(),
+            designation: data.designation,
+            requested_department_id: member.department_id ? null : targetRequestedDeptId,
+            requested_department_name: member.department_id ? null : requestedDeptName,
+            is_global: Boolean(data.isGlobal),
+          },
+        },
+      },
+    });
+
+    if (metaErr) {
+      await svc.from("audit_logs").delete().eq("id", insertedAudit.id);
+      throw new Error(`Failed to persist onboarding metadata: ${metaErr.message}`);
+    }
+
+    return {
+      success: true,
+      departmentId: member.department_id,
+      requestedDepartmentId: member.department_id ? null : targetRequestedDeptId,
+      requestedDepartmentName: member.department_id ? null : requestedDeptName,
+      requiresAdminDepartmentApproval: !member.department_id && Boolean(targetRequestedDeptId),
+    };
+  } catch (err) {
+    // Compensating rollback so partial writes never persist on failure
+    if (memberUpdated) {
+      await svc
+        .from("organization_members")
+        .update({
+          designation: previousDesignation,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", member.id)
+        .eq("organization_id", member.organization_id);
+    }
+    if (profileUpdated) {
+      await svc
+        .from("profiles")
+        .update({ full_name: previousFullName })
+        .eq("id", user.id);
+    }
+    throw err;
+  }
+}
 
 export const completeMemberOnboarding = createServerFn({ method: "POST" })
   .validator(CompleteMemberOnboardingInput)
   .handler(async (ctx) => {
-    const data = CompleteMemberOnboardingInput.parse(ctx.data);
     const headers = getRequestHeaders();
-    const token = headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) throw new Error("Unauthorized");
-
-    const userClient = getUserClient(token);
-    const {
-      data: { user },
-      error: userErr,
-    } = await userClient.auth.getUser();
-    if (userErr || !user) throw new Error("Unauthorized");
-
-    const svc = getServiceClient();
-
-    // 1. Get user's active membership
-    const { data: member } = await svc
-      .from("organization_members")
-      .select("id, organization_id, role")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (!member) throw new Error("No active organization membership found");
-
-    // 2. If fullName is provided, update profiles table
-    if (data.fullName?.trim()) {
-      await svc
-        .from("profiles")
-        .update({ full_name: data.fullName.trim() })
-        .eq("id", user.id);
-    }
-
-    // 3. If departmentId is provided, verify it belongs to this organization
-    if (data.departmentId) {
-      const { data: dept } = await svc
-        .from("departments")
-        .select("id")
-        .eq("id", data.departmentId)
-        .eq("organization_id", member.organization_id)
-        .maybeSingle();
-
-      if (!dept) throw new Error("Selected department does not exist in your organization");
-    }
-
-    // 4. Update organization_members with department and designation
-    const updates: Record<string, any> = {
-      designation: data.designation?.trim() || "Staff",
-      department_id: data.departmentId || null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error: updateErr } = await svc
-      .from("organization_members")
-      .update(updates)
-      .eq("id", member.id);
-
-    if (updateErr) throw new Error(updateErr.message);
-
-    // 5. Audit log
-    await svc.from("audit_logs").insert({
-      organization_id: member.organization_id,
-      actor_id: user.id,
-      event_type: "member_onboarded",
-      entity_type: "organization_members",
-      entity_id: member.id,
-      metadata: {
-        department_id: data.departmentId || null,
-        designation: data.designation || "Staff",
-      } as any,
-    });
-
-    return { success: true };
+    const token = headers.get("authorization")?.replace("Bearer ", "") || "";
+    return completeMemberOnboardingCore(ctx.data, token);
   });
+
 

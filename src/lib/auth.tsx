@@ -33,6 +33,52 @@ export interface OrgContext {
   departmentId: string | null;
   department_id: string | null;
   designation: string | null;
+  requestedDepartmentId?: string | null;
+  requestedDepartmentName?: string | null;
+}
+
+/**
+ * Determines whether an active organization member still needs to complete
+ * self-service member onboarding.
+ *
+ * Rules:
+ * - Owners and Admins never require member onboarding.
+ * - A member requires onboarding if they are missing a designation OR if they have no
+ *   assigned department AND have not yet completed self-service onboarding (recorded in
+ *   server-controlled user.app_metadata.onboarded_orgs[orgId]).
+ * - This ensures members with a designation but no department (or a department but no
+ *   designation) are never silently skipped.
+ */
+export function computeNeedsMemberOnboarding(
+  resolvedOrg: Pick<OrgContext, "organization" | "role" | "departmentId" | "designation"> | null,
+  currentUser: Pick<User, "app_metadata"> | null
+): boolean {
+  if (!resolvedOrg) return false;
+  if (resolvedOrg.role === "owner" || resolvedOrg.role === "admin") {
+    return false;
+  }
+
+  const hasDesignation = Boolean(resolvedOrg.designation && resolvedOrg.designation.trim().length > 0);
+  const hasDepartment = Boolean(resolvedOrg.departmentId);
+
+  const onboardedOrgs =
+    (currentUser?.app_metadata?.onboarded_orgs as Record<string, any> | undefined) || {};
+  const hasCompletedSelfServiceOnboarding = Boolean(
+    onboardedOrgs[resolvedOrg.organization.id]?.onboarded_at
+  );
+
+  // If both designation and department are assigned, no onboarding is needed
+  if (hasDesignation && hasDepartment) {
+    return false;
+  }
+
+  // If the member already completed self-service onboarding (and has a designation),
+  // their department request is pending administrator approval — do not re-prompt.
+  if (hasDesignation && hasCompletedSelfServiceOnboarding) {
+    return false;
+  }
+
+  return true;
 }
 
 interface AuthCtx {
@@ -61,7 +107,7 @@ async function resolveProfile(userId: string): Promise<Profile | null> {
   return data ?? null;
 }
 
-async function resolveMembership(userId: string): Promise<OrgContext | null> {
+async function resolveMembership(userId: string, currentUser?: User | null): Promise<OrgContext | null> {
   // Get the user's active membership (first active org).
   const { data: member } = await supabase
     .from("organization_members")
@@ -77,6 +123,10 @@ async function resolveMembership(userId: string): Promise<OrgContext | null> {
   const memberCast = member as unknown as OrganizationMember & { organizations: Organization };
   const org = memberCast.organizations;
   if (!org || org.status === "suspended") return null;
+
+  const onboardedMeta = (currentUser?.app_metadata?.onboarded_orgs as Record<string, any> | undefined)?.[
+    org.id
+  ];
 
   return {
     organization: org,
@@ -97,6 +147,12 @@ async function resolveMembership(userId: string): Promise<OrgContext | null> {
     departmentId: memberCast.department_id ?? null,
     department_id: memberCast.department_id ?? null,
     designation: memberCast.designation ?? null,
+    requestedDepartmentId: !memberCast.department_id
+      ? (onboardedMeta?.requested_department_id ?? null)
+      : null,
+    requestedDepartmentName: !memberCast.department_id
+      ? (onboardedMeta?.requested_department_name ?? null)
+      : null,
   };
 }
 
@@ -139,43 +195,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Resolve in parallel - both are needed before we unblock rendering.
     const [resolvedProfile, resolvedOrg] = await Promise.all([
       resolveProfile(s.user.id),
-      resolveMembership(s.user.id),
+      resolveMembership(s.user.id, s.user),
     ]);
 
     setProfile(resolvedProfile);
     setOrg(resolvedOrg);
     setNeedsOnboarding(!resolvedOrg);
-
-    const isOwnerOrAdmin = resolvedOrg?.role === "owner" || resolvedOrg?.role === "admin";
-    const needsMemberSetup = Boolean(
-      resolvedOrg &&
-      !isOwnerOrAdmin &&
-      !resolvedOrg.departmentId &&
-      !resolvedOrg.designation
-    );
-    setNeedsMemberOnboarding(needsMemberSetup);
+    setNeedsMemberOnboarding(computeNeedsMemberOnboarding(resolvedOrg, s.user));
 
     setLoading(false);
   }, []);
 
   const refreshMembership = useCallback(async () => {
     if (!user) return;
+    // Fetch fresh user metadata (including server-updated app_metadata.onboarded_orgs)
+    const { data: freshUserData } = await supabase.auth.getUser();
+    const effectiveUser = freshUserData?.user ?? user;
+    if (freshUserData?.user) {
+      setUser(freshUserData.user);
+    }
+
     const [resolved, resolvedProf] = await Promise.all([
-      resolveMembership(user.id),
-      resolveProfile(user.id),
+      resolveMembership(effectiveUser.id, effectiveUser),
+      resolveProfile(effectiveUser.id),
     ]);
     setOrg(resolved);
     setProfile(resolvedProf);
     setNeedsOnboarding(!resolved);
-
-    const isOwnerOrAdmin = resolved?.role === "owner" || resolved?.role === "admin";
-    const needsMemberSetup = Boolean(
-      resolved &&
-      !isOwnerOrAdmin &&
-      !resolved.departmentId &&
-      !resolved.designation
-    );
-    setNeedsMemberOnboarding(needsMemberSetup);
+    setNeedsMemberOnboarding(computeNeedsMemberOnboarding(resolved, effectiveUser));
   }, [user]);
 
   useEffect(() => {

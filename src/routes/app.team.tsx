@@ -363,7 +363,36 @@ function Team() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">{m.designation || "-"}</td>
-                      <td className="px-5 py-3 text-muted-foreground">{(m as any).departments?.name || "-"}</td>
+                      <td className="px-5 py-3 text-muted-foreground">
+                        {(m as any).departments?.name ? (
+                          (m as any).departments.name
+                        ) : (m as any).requested_department_name ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-mono bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-300/60">
+                              Requested: {(m as any).requested_department_name}
+                            </span>
+                            {isAdmin && (m as any).requested_department_id && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateMut.mutate({
+                                    memberId: m.id,
+                                    role: m.role,
+                                    designation: m.designation,
+                                    department_id: (m as any).requested_department_id,
+                                  })
+                                }
+                                disabled={updateMut.isPending}
+                                className="text-[11px] font-medium text-primary hover:underline"
+                              >
+                                Approve
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
                       <td className="px-5 py-3">
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider ${m.status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"}`}
@@ -377,7 +406,9 @@ function Team() {
                             setEditingMember(m);
                             setEditRole(m.role);
                             setEditDesignation(m.designation || "");
-                            setEditDepartmentId(m.department_id || "");
+                            setEditDepartmentId(
+                              m.department_id || (m as any).requested_department_id || ""
+                            );
                           }}
                           className="text-primary hover:underline text-xs"
                         >
