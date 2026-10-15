@@ -332,8 +332,8 @@ WHERE p.status = 'active'
 
 GRANT SELECT ON public.procedure_member_compliance TO authenticated, service_role;
 
--- ─── 7. AUDIENCE REVIEW INVENTORY VIEW ──────────────────────────────────────
--- Provides an immediate audit inventory of active procedures requiring audience review
+-- ─── 7. AUDIENCE INVENTORY VIEW ─────────────────────────────────────────────
+-- Provides an authoritative inventory of active procedures and their audience scope
 CREATE OR REPLACE VIEW public.procedure_audience_review_inventory WITH (security_invoker = true) AS
 SELECT 
   p.organization_id,
@@ -345,14 +345,15 @@ SELECT
   d.name AS department_name,
   p.acknowledgment_required,
   p.acknowledgment_audience,
-  p.created_at,
-  p.updated_at,
   CASE 
-    WHEN p.acknowledgment_audience = 'all_active_members' THEN 'PENDING_OPERATIONAL_REVIEW'
-    ELSE 'CONFIRMED_STAFF_ONLY'
-  END AS review_status
+    WHEN p.department_id IS NOT NULL THEN 'department'
+    ELSE 'organization_wide'
+  END AS scope_type,
+  p.created_at,
+  p.updated_at
 FROM public.procedures p
 LEFT JOIN public.departments d ON p.department_id = d.id
 WHERE p.status = 'active' AND p.acknowledgment_required = TRUE;
 
 GRANT SELECT ON public.procedure_audience_review_inventory TO authenticated, service_role;
+
