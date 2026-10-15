@@ -18,6 +18,8 @@ export function processOperationalCompliance(
   profilesMap?: Map<string, { email?: string | null; full_name?: string | null }>,
   profileLookupFailed = false,
   versionNumberMap?: Map<string, number>,
+  activeProcs?: Array<{ id: string; title: string; priority?: string; department_id?: string | null }>,
+  allDepts?: Array<{ id: string; name: string }>,
 ) {
   const totalRequired = data.length;
   const acknowledged = data.filter((d) => d.compliance_status === "ACKNOWLEDGED").length;
@@ -26,10 +28,26 @@ export function processOperationalCompliance(
   const compliancePct =
     totalRequired === 0 ? null : Math.round((acknowledged / totalRequired) * 100);
 
-  // Group by procedure
-  const byProcedure = data.reduce((acc, curr) => {
-    if (!acc[curr.procedure_id]) {
-      acc[curr.procedure_id] = {
+  // Group by procedure (pre-seeded with all active procedures in scope)
+  const byProcedure: Record<string, any> = {};
+  if (activeProcs) {
+    for (const p of activeProcs) {
+      byProcedure[p.id] = {
+        procedure_id: p.id,
+        title: p.title,
+        priority: p.priority,
+        department_id: p.department_id,
+        total: 0,
+        acknowledged: 0,
+        outstanding: 0,
+        requires_reack: 0,
+      };
+    }
+  }
+
+  for (const curr of data) {
+    if (!byProcedure[curr.procedure_id]) {
+      byProcedure[curr.procedure_id] = {
         procedure_id: curr.procedure_id,
         title: curr.procedure_title,
         total: 0,
@@ -38,19 +56,32 @@ export function processOperationalCompliance(
         requires_reack: 0,
       };
     }
-    acc[curr.procedure_id].total++;
-    if (curr.compliance_status === "ACKNOWLEDGED") acc[curr.procedure_id].acknowledged++;
-    if (curr.compliance_status === "OUTSTANDING") acc[curr.procedure_id].outstanding++;
-    if (curr.compliance_status === "REQUIRES_REACK") acc[curr.procedure_id].requires_reack++;
-    return acc;
-  }, {} as Record<string, any>);
+    byProcedure[curr.procedure_id].total++;
+    if (curr.compliance_status === "ACKNOWLEDGED") byProcedure[curr.procedure_id].acknowledged++;
+    if (curr.compliance_status === "OUTSTANDING") byProcedure[curr.procedure_id].outstanding++;
+    if (curr.compliance_status === "REQUIRES_REACK") byProcedure[curr.procedure_id].requires_reack++;
+  }
 
-  // Group by department
-  const byDepartment = data.reduce((acc, curr) => {
+  // Group by department (pre-seeded with all active departments)
+  const byDepartment: Record<string, any> = {};
+  if (allDepts) {
+    for (const d of allDepts) {
+      byDepartment[d.id] = {
+        department_id: d.id,
+        department_name: d.name,
+        total: 0,
+        acknowledged: 0,
+        outstanding: 0,
+        requires_reack: 0,
+      };
+    }
+  }
+
+  for (const curr of data) {
     const deptId = curr.member_department_id || "unassigned";
     const deptName = deptId === "unassigned" ? "Unassigned" : (deptMap?.[deptId] || deptId);
-    if (!acc[deptId]) {
-      acc[deptId] = {
+    if (!byDepartment[deptId]) {
+      byDepartment[deptId] = {
         department_id: deptId,
         department_name: deptName,
         total: 0,
@@ -59,12 +90,11 @@ export function processOperationalCompliance(
         requires_reack: 0,
       };
     }
-    acc[deptId].total++;
-    if (curr.compliance_status === "ACKNOWLEDGED") acc[deptId].acknowledged++;
-    if (curr.compliance_status === "OUTSTANDING") acc[deptId].outstanding++;
-    if (curr.compliance_status === "REQUIRES_REACK") acc[deptId].requires_reack++;
-    return acc;
-  }, {} as Record<string, any>);
+    byDepartment[deptId].total++;
+    if (curr.compliance_status === "ACKNOWLEDGED") byDepartment[deptId].acknowledged++;
+    if (curr.compliance_status === "OUTSTANDING") byDepartment[deptId].outstanding++;
+    if (curr.compliance_status === "REQUIRES_REACK") byDepartment[deptId].requires_reack++;
+  }
 
   // Group by member
   const byMember = data.reduce((acc, curr) => {
@@ -273,5 +303,26 @@ export const getOperationalCompliance = createServerFn({ method: "GET" }).handle
     }
   }
 
-  return processOperationalCompliance(data, deptMap, profilesMap, profileLookupFailed, versionNumberMap);
+  // Fetch active procedures requiring acknowledgment in scope
+  let procQuery = svc
+    .from("procedures")
+    .select("id, title, priority, department_id")
+    .eq("organization_id", ctx.orgId)
+    .eq("status", "active")
+    .eq("acknowledgment_required", true);
+
+  if (ctx.role === "manager" && ctx.departmentId) {
+    procQuery = procQuery.eq("department_id", ctx.departmentId);
+  }
+  const { data: activeProcs } = await procQuery;
+
+  return processOperationalCompliance(
+    data,
+    deptMap,
+    profilesMap,
+    profileLookupFailed,
+    versionNumberMap,
+    activeProcs || [],
+    depts || [],
+  );
 });

@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { getOperationalCompliance } from "@/lib/compliance.server";
 import { useEffect } from "react";
+import { Info } from "lucide-react";
 
 export const Route = createFileRoute("/app/compliance")({ component: Compliance });
 
@@ -101,6 +102,22 @@ function Compliance() {
         </div>
       </div>
 
+      {data.overall.totalRequired === 0 && data.byProcedure.length > 0 && (
+        <div className="mb-8 p-4 bg-muted/40 border border-border rounded-sm flex items-start gap-3 text-sm">
+          <Info className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <div className="font-medium text-foreground">No team members currently in scope</div>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Active procedures are currently scoped to specific departments that have no assigned team members. To generate acknowledgment obligations, assign team members to departments in{" "}
+              <Link to="/app/team" className="underline hover:text-foreground">
+                Team
+              </Link>{" "}
+              or edit the procedure to be Organization-Wide (all departments).
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <section>
           <h3 className="text-lg font-semibold mb-4">By Procedure</h3>
@@ -126,7 +143,15 @@ function Compliance() {
                     <tr key={p.procedure_id} className="hover:bg-muted/30">
                       <td className="px-4 py-3 font-medium truncate max-w-[200px]">{p.title}</td>
                       <td className="px-4 py-3 text-right">
-                        {p.compliancePct !== null ? `${p.compliancePct}%` : 'N/A'}
+                        {p.total === 0 ? (
+                          <span className="text-xs text-muted-foreground" title="0 team members assigned to this procedure's department">
+                            N/A (0 in scope)
+                          </span>
+                        ) : p.compliancePct !== null ? (
+                          `${p.compliancePct}%`
+                        ) : (
+                          'N/A'
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right text-red-600">{p.outstanding > 0 ? p.outstanding : '-'}</td>
                       <td className="px-4 py-3 text-right text-amber-600">{p.requires_reack > 0 ? p.requires_reack : '-'}</td>
@@ -163,7 +188,15 @@ function Compliance() {
                       <tr key={d.department_id} className="hover:bg-muted/30">
                         <td className="px-4 py-3 font-medium">{d.department_name || (d.department_id === 'unassigned' ? 'Unassigned' : d.department_id)}</td>
                         <td className="px-4 py-3 text-right">
-                          {d.compliancePct !== null ? `${d.compliancePct}%` : 'N/A'}
+                          {d.total === 0 ? (
+                            <span className="text-xs text-muted-foreground" title="0 team members assigned to this department">
+                              N/A (0 in scope)
+                            </span>
+                          ) : d.compliancePct !== null ? (
+                            `${d.compliancePct}%`
+                          ) : (
+                            'N/A'
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right text-red-600">{d.outstanding > 0 ? d.outstanding : '-'}</td>
                         <td className="px-4 py-3 text-right text-amber-600">{d.requires_reack > 0 ? d.requires_reack : '-'}</td>
