@@ -12,12 +12,17 @@ export function processStaffCompliance(data: any[]) {
   };
 }
 
-export function processOperationalCompliance(data: any[], deptMap?: Record<string, string>) {
+export function processOperationalCompliance(
+  data: any[],
+  deptMap?: Record<string, string>,
+  profilesMap?: Map<string, { email?: string | null; full_name?: string | null }>,
+) {
   const totalRequired = data.length;
-  const acknowledged = data.filter(d => d.compliance_status === "ACKNOWLEDGED").length;
-  const outstanding = data.filter(d => d.compliance_status === "OUTSTANDING").length;
-  const requiresReack = data.filter(d => d.compliance_status === "REQUIRES_REACK").length;
-  const compliancePct = totalRequired === 0 ? null : Math.round((acknowledged / totalRequired) * 100);
+  const acknowledged = data.filter((d) => d.compliance_status === "ACKNOWLEDGED").length;
+  const outstanding = data.filter((d) => d.compliance_status === "OUTSTANDING").length;
+  const requiresReack = data.filter((d) => d.compliance_status === "REQUIRES_REACK").length;
+  const compliancePct =
+    totalRequired === 0 ? null : Math.round((acknowledged / totalRequired) * 100);
 
   // Group by procedure
   const byProcedure = data.reduce((acc, curr) => {
@@ -59,6 +64,56 @@ export function processOperationalCompliance(data: any[], deptMap?: Record<strin
     return acc;
   }, {} as Record<string, any>);
 
+  // Group by member
+  const byMember = data.reduce((acc, curr) => {
+    const uid = curr.user_id;
+    const profile = profilesMap?.get(uid);
+    const deptId = curr.member_department_id || "unassigned";
+    const deptName = deptId === "unassigned" ? "Unassigned" : (deptMap?.[deptId] || deptId);
+
+    if (!acc[uid]) {
+      acc[uid] = {
+        user_id: uid,
+        email: profile?.email || curr.member_email || uid,
+        name: profile?.full_name || profile?.email || curr.member_name || "Team Member",
+        role: curr.member_role || "staff",
+        department_id: deptId,
+        department_name: deptName,
+        total: 0,
+        acknowledged: 0,
+        outstanding: 0,
+        requires_reack: 0,
+      };
+    }
+    acc[uid].total++;
+    if (curr.compliance_status === "ACKNOWLEDGED") acc[uid].acknowledged++;
+    if (curr.compliance_status === "OUTSTANDING") acc[uid].outstanding++;
+    if (curr.compliance_status === "REQUIRES_REACK") acc[uid].requires_reack++;
+    return acc;
+  }, {} as Record<string, any>);
+
+  // Individual roster items
+  const roster = data.map((curr) => {
+    const uid = curr.user_id;
+    const profile = profilesMap?.get(uid);
+    const deptId = curr.member_department_id || "unassigned";
+    const deptName = deptId === "unassigned" ? "Unassigned" : (deptMap?.[deptId] || deptId);
+
+    return {
+      user_id: uid,
+      member_name: profile?.full_name || profile?.email || curr.member_name || "Team Member",
+      member_email: profile?.email || curr.member_email || uid,
+      member_role: curr.member_role || "staff",
+      department_name: deptName,
+      procedure_id: curr.procedure_id,
+      procedure_title: curr.procedure_title,
+      current_version_number: curr.current_version_number,
+      latest_ack_version_id: curr.latest_ack_version_id,
+      latest_ack_date: curr.latest_ack_date,
+      compliance_status: curr.compliance_status,
+    };
+  });
+
   return {
     overall: {
       totalRequired,
@@ -75,6 +130,11 @@ export function processOperationalCompliance(data: any[], deptMap?: Record<strin
       ...d,
       compliancePct: d.total === 0 ? null : Math.round((d.acknowledged / d.total) * 100),
     })),
+    byMember: Object.values(byMember).map((m: any) => ({
+      ...m,
+      compliancePct: m.total === 0 ? null : Math.round((m.acknowledged / m.total) * 100),
+    })),
+    roster,
   };
 }
 
@@ -136,5 +196,18 @@ export const getOperationalCompliance = createServerFn({ method: "GET" }).handle
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  return processOperationalCompliance(data, deptMap);
+  // Fetch member profiles for display names and emails
+  const userIds = Array.from(new Set((data || []).map((r) => r.user_id)));
+  let profilesMap = new Map<string, { email?: string | null; full_name?: string | null }>();
+  if (userIds.length > 0) {
+    const { data: profiles } = await svc
+      .from("profiles")
+      .select("id, email, full_name")
+      .in("id", userIds);
+    if (profiles) {
+      profilesMap = new Map(profiles.map((p) => [p.id, p]));
+    }
+  }
+
+  return processOperationalCompliance(data, deptMap, profilesMap);
 });

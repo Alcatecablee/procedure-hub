@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -30,6 +30,8 @@ function Compliance() {
     };
     byProcedure: any[];
     byDepartment: any[];
+    byMember?: any[];
+    roster?: any[];
   }
 
   const { data, isLoading, isError } = useQuery<OperationalComplianceResult>({
@@ -171,6 +173,115 @@ function Compliance() {
           </section>
         )}
       </div>
+
+      {/* Team Member Acknowledgments Roster */}
+      <section className="mt-10">
+        <div className="flex items-baseline justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Member Acknowledgments</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Individual procedure acknowledgment records across all active team members.
+            </p>
+          </div>
+          <span className="font-mono text-xs text-muted-foreground">
+            {data.roster?.length || 0} required record{(data.roster?.length || 0) === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <div className="bg-card border border-border rounded-sm overflow-hidden shadow-sm">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-muted/50 border-b border-border">
+              <tr>
+                <th className="px-4 py-3 font-medium">Team Member</th>
+                <th className="px-4 py-3 font-medium">Role</th>
+                <th className="px-4 py-3 font-medium">Department</th>
+                <th className="px-4 py-3 font-medium">Procedure</th>
+                <th className="px-4 py-3 font-medium text-center">Status</th>
+                <th className="px-4 py-3 font-medium text-right">Acknowledged At</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {!data.roster || data.roster.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                    No acknowledgment obligations recorded
+                  </td>
+                </tr>
+              ) : (
+                data.roster.map((row: any, idx: number) => {
+                  const isAcked = row.compliance_status === "ACKNOWLEDGED";
+                  const isReack = row.compliance_status === "REQUIRES_REACK";
+                  const isOut = row.compliance_status === "OUTSTANDING";
+
+                  return (
+                    <tr
+                      key={`${row.user_id}-${row.procedure_id}-${idx}`}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        <div className="text-foreground">{row.member_name}</div>
+                        {row.member_email && row.member_email !== row.member_name && (
+                          <div className="text-xs text-muted-foreground font-mono">
+                            {row.member_email}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {row.member_role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {row.department_name}
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        <Link
+                          to="/app/procedures/$id"
+                          params={{ id: row.procedure_id }}
+                          className="hover:underline text-foreground"
+                        >
+                          {row.procedure_title}
+                        </Link>
+                        <span className="font-mono text-[10.5px] text-muted-foreground ml-1.5">
+                          v{row.current_version_number}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {isAcked && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            Acknowledged
+                          </span>
+                        )}
+                        {isReack && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            Re-Ack Req
+                          </span>
+                        )}
+                        {isOut && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium font-mono uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                            Outstanding
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
+                        {row.latest_ack_date
+                          ? new Date(row.latest_ack_date).toLocaleString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "-"}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
