@@ -15,6 +15,7 @@ DECLARE
   _proc RECORD;
   _member RECORD;
   _user_id UUID := auth.uid();
+  _ack_id UUID;
 BEGIN
   IF _user_id IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
 
@@ -65,16 +66,27 @@ BEGIN
     RAISE EXCEPTION 'Forbidden: This procedure only requires and accepts acknowledgments from staff';
   END IF;
 
-  -- 5. Record acknowledgment idempotently
-  BEGIN
-    INSERT INTO public.acknowledgments (organization_id, procedure_id, procedure_version_id, user_id)
-    VALUES (_org_id, _proc_id, _ver_id, _user_id);
-    
-    INSERT INTO public.audit_logs (organization_id, actor_id, event_type, entity_type, entity_id, metadata)
-    VALUES (_org_id, _user_id, 'acknowledgment_created', 'procedure_version', _ver_id, '{}'::jsonb);
-  EXCEPTION WHEN unique_violation THEN
-    RETURN TRUE;
-  END;
+  -- 5. Record acknowledgment idempotently against the specific version uniqueness constraint.
+  -- Only the expected duplicate acknowledgment is handled cleanly via ON CONFLICT.
+  INSERT INTO public.acknowledgments (
+    organization_id, procedure_id, procedure_version_id, user_id
+  )
+  VALUES (
+    _org_id, _proc_id, _ver_id, _user_id
+  )
+  ON CONFLICT (procedure_version_id, user_id, revoked_at) DO NOTHING
+  RETURNING id INTO _ack_id;
+
+  -- 6. Insert audit log ONLY if a new acknowledgment record was inserted.
+  -- Any failure here will fail the transaction rather than returning TRUE on a partial failure.
+  IF _ack_id IS NOT NULL THEN
+    INSERT INTO public.audit_logs (
+      organization_id, actor_id, event_type, entity_type, entity_id, metadata
+    )
+    VALUES (
+      _org_id, _user_id, 'acknowledgment_created', 'procedure_version', _ver_id, '{}'::jsonb
+    );
+  END IF;
 
   RETURN TRUE;
 END;

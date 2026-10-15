@@ -146,6 +146,8 @@ function Team() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team", "members"] });
+      queryClient.invalidateQueries({ queryKey: ["operational-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-compliance"] });
       toast.success("Member updated");
       setEditingMember(null);
     },
@@ -159,6 +161,8 @@ function Team() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team", "members"] });
+      queryClient.invalidateQueries({ queryKey: ["operational-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-compliance"] });
       toast.success("Member removed");
     },
     onError: (e) => toast.error((e as Error).message),

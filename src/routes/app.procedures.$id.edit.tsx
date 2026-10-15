@@ -148,6 +148,8 @@ function EditProcedure() {
       isNavigatingAfterSave.current = true;
       queryClient.invalidateQueries({ queryKey: ["procedure", id] });
       queryClient.invalidateQueries({ queryKey: ["procedures"] });
+      queryClient.invalidateQueries({ queryKey: ["operational-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-compliance"] });
       navigate({ to: `/app/procedures/${id}` });
     },
     onError: (e) => toast.error((e as Error).message),

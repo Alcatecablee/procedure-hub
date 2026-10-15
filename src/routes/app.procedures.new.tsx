@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth, useIsManager } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { createProcedure, getCategories, getDepartments } from "@/lib/procedures.server";
@@ -15,6 +15,7 @@ function NewProcedure() {
   const { org } = useAuth();
   const isManager = useIsManager();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isNavigatingAfterSave = useRef(false);
 
   useEffect(() => {
@@ -95,6 +96,10 @@ function NewProcedure() {
     },
     onSuccess: (data) => {
       isNavigatingAfterSave.current = true;
+      queryClient.invalidateQueries({ queryKey: ["procedures"] });
+      queryClient.invalidateQueries({ queryKey: ["operational-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["procedure", data.procedureId] });
       navigate({ to: `/app/procedures/${data.procedureId}` });
     },
     onError: (e) => toast.error((e as Error).message),

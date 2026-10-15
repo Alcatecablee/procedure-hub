@@ -77,6 +77,8 @@ function ProcedureDetail() {
       toast.success("Procedure archived");
       queryClient.invalidateQueries({ queryKey: ["procedure", id] });
       queryClient.invalidateQueries({ queryKey: ["procedures"] });
+      queryClient.invalidateQueries({ queryKey: ["operational-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-compliance"] });
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -97,6 +99,9 @@ function ProcedureDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["procedure", id] });
       queryClient.invalidateQueries({ queryKey: ["procedures"] });
+      queryClient.invalidateQueries({ queryKey: ["procedureLogs", id] });
+      queryClient.invalidateQueries({ queryKey: ["operational-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-compliance"] });
       toast.success("Procedure acknowledged successfully.");
     },
     onError: (e) => toast.error((e as Error).message),
@@ -135,6 +140,8 @@ function ProcedureDetail() {
       queryClient.invalidateQueries({ queryKey: ["procedure", id] });
       queryClient.invalidateQueries({ queryKey: ["procedures"] });
       queryClient.invalidateQueries({ queryKey: ["procedureLogs", id] });
+      queryClient.invalidateQueries({ queryKey: ["operational-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-compliance"] });
     },
     onError: (e) => toast.error((e as Error).message),
   });
