@@ -9,26 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as AppTeamRouteImport } from './routes/app.team'
-import { Route as AppSettingsRouteImport } from './routes/app.settings'
-import { Route as AppDepartmentRouteImport } from './routes/app.department'
-import { Route as AppComplianceRouteImport } from './routes/app.compliance'
-import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
 import { Route as AppAcknowledgmentsRouteImport } from './routes/app.acknowledgments'
-import { Route as AppProceduresIndexRouteImport } from './routes/app.procedures.index'
+import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
+import { Route as AppComplianceRouteImport } from './routes/app.compliance'
+import { Route as AppDepartmentRouteImport } from './routes/app.department'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppTeamRouteImport } from './routes/app.team'
 import { Route as AppImportIndexRouteImport } from './routes/app.import.index'
-import { Route as AppProceduresNewRouteImport } from './routes/app.procedures.new'
 import { Route as AppImportImportIdRouteImport } from './routes/app.import.$importId'
+import { Route as AppProceduresIndexRouteImport } from './routes/app.procedures.index'
+import { Route as AppProceduresNewRouteImport } from './routes/app.procedures.new'
 import { Route as AppProceduresIdIndexRouteImport } from './routes/app.procedures.$id.index'
 import { Route as AppProceduresIdEditRouteImport } from './routes/app.procedures.$id.edit'
 
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -36,9 +36,9 @@ const AppRoute = AppRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -46,24 +46,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTeamRoute = AppTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDepartmentRoute = AppDepartmentRouteImport.update({
-  id: '/department',
-  path: '/department',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppComplianceRoute = AppComplianceRouteImport.update({
-  id: '/compliance',
-  path: '/compliance',
+const AppAcknowledgmentsRoute = AppAcknowledgmentsRouteImport.update({
+  id: '/acknowledgments',
+  path: '/acknowledgments',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
@@ -71,14 +56,24 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAcknowledgmentsRoute = AppAcknowledgmentsRouteImport.update({
-  id: '/acknowledgments',
-  path: '/acknowledgments',
+const AppComplianceRoute = AppComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
-  id: '/procedures/',
-  path: '/procedures/',
+const AppDepartmentRoute = AppDepartmentRouteImport.update({
+  id: '/department',
+  path: '/department',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
   getParentRoute: () => AppRoute,
 } as any)
 const AppImportIndexRoute = AppImportIndexRouteImport.update({
@@ -86,14 +81,19 @@ const AppImportIndexRoute = AppImportIndexRouteImport.update({
   path: '/import/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProceduresNewRoute = AppProceduresNewRouteImport.update({
-  id: '/procedures/new',
-  path: '/procedures/new',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppImportImportIdRoute = AppImportImportIdRouteImport.update({
   id: '/import/$importId',
   path: '/import/$importId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresIndexRoute = AppProceduresIndexRouteImport.update({
+  id: '/procedures/',
+  path: '/procedures/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProceduresNewRoute = AppProceduresNewRouteImport.update({
+  id: '/procedures/new',
+  path: '/procedures/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProceduresIdIndexRoute = AppProceduresIdIndexRouteImport.update({
@@ -225,11 +225,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -239,11 +239,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -253,32 +253,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/team': {
-      id: '/app/team'
-      path: '/team'
-      fullPath: '/app/team'
-      preLoaderRoute: typeof AppTeamRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/settings': {
-      id: '/app/settings'
-      path: '/settings'
-      fullPath: '/app/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/department': {
-      id: '/app/department'
-      path: '/department'
-      fullPath: '/app/department'
-      preLoaderRoute: typeof AppDepartmentRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/compliance': {
-      id: '/app/compliance'
-      path: '/compliance'
-      fullPath: '/app/compliance'
-      preLoaderRoute: typeof AppComplianceRouteImport
+    '/app/acknowledgments': {
+      id: '/app/acknowledgments'
+      path: '/acknowledgments'
+      fullPath: '/app/acknowledgments'
+      preLoaderRoute: typeof AppAcknowledgmentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/analytics': {
@@ -288,18 +267,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/acknowledgments': {
-      id: '/app/acknowledgments'
-      path: '/acknowledgments'
-      fullPath: '/app/acknowledgments'
-      preLoaderRoute: typeof AppAcknowledgmentsRouteImport
+    '/app/compliance': {
+      id: '/app/compliance'
+      path: '/compliance'
+      fullPath: '/app/compliance'
+      preLoaderRoute: typeof AppComplianceRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/procedures/': {
-      id: '/app/procedures/'
-      path: '/procedures'
-      fullPath: '/app/procedures/'
-      preLoaderRoute: typeof AppProceduresIndexRouteImport
+    '/app/department': {
+      id: '/app/department'
+      path: '/department'
+      fullPath: '/app/department'
+      preLoaderRoute: typeof AppDepartmentRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/team': {
+      id: '/app/team'
+      path: '/team'
+      fullPath: '/app/team'
+      preLoaderRoute: typeof AppTeamRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/import/': {
@@ -309,18 +302,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppImportIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/procedures/new': {
-      id: '/app/procedures/new'
-      path: '/procedures/new'
-      fullPath: '/app/procedures/new'
-      preLoaderRoute: typeof AppProceduresNewRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/import/$importId': {
       id: '/app/import/$importId'
       path: '/import/$importId'
       fullPath: '/app/import/$importId'
       preLoaderRoute: typeof AppImportImportIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/procedures/': {
+      id: '/app/procedures/'
+      path: '/procedures'
+      fullPath: '/app/procedures/'
+      preLoaderRoute: typeof AppProceduresIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/procedures/new': {
+      id: '/app/procedures/new'
+      path: '/procedures/new'
+      fullPath: '/app/procedures/new'
+      preLoaderRoute: typeof AppProceduresNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/procedures/$id/': {
