@@ -46,6 +46,8 @@ interface AuthCtx {
   unauthenticated: boolean;
   /** user has a session but no active organization membership */
   needsOnboarding: boolean;
+  /** user is in an organization but has not completed member onboarding */
+  needsMemberOnboarding: boolean;
   signOut: () => Promise<void>;
   /** Re-resolve membership after org creation or role change */
   refreshMembership: () => Promise<void>;
@@ -107,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [unauthenticated, setUnauthenticated] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [needsMemberOnboarding, setNeedsMemberOnboarding] = useState(false);
 
   const currentUserRef = useRef<User | null>(null);
   currentUserRef.current = user;
@@ -123,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setOrg(null);
       setNeedsOnboarding(false);
+      setNeedsMemberOnboarding(false);
       setUnauthenticated(true);
       setLoading(false);
       return;
@@ -141,14 +145,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(resolvedProfile);
     setOrg(resolvedOrg);
     setNeedsOnboarding(!resolvedOrg);
+
+    const isOwnerOrAdmin = resolvedOrg?.role === "owner" || resolvedOrg?.role === "admin";
+    const needsMemberSetup = Boolean(
+      resolvedOrg &&
+      !isOwnerOrAdmin &&
+      !resolvedOrg.departmentId &&
+      !resolvedOrg.designation
+    );
+    setNeedsMemberOnboarding(needsMemberSetup);
+
     setLoading(false);
   }, []);
 
   const refreshMembership = useCallback(async () => {
     if (!user) return;
-    const resolved = await resolveMembership(user.id);
+    const [resolved, resolvedProf] = await Promise.all([
+      resolveMembership(user.id),
+      resolveProfile(user.id),
+    ]);
     setOrg(resolved);
+    setProfile(resolvedProf);
     setNeedsOnboarding(!resolved);
+
+    const isOwnerOrAdmin = resolved?.role === "owner" || resolved?.role === "admin";
+    const needsMemberSetup = Boolean(
+      resolved &&
+      !isOwnerOrAdmin &&
+      !resolved.departmentId &&
+      !resolved.designation
+    );
+    setNeedsMemberOnboarding(needsMemberSetup);
   }, [user]);
 
   useEffect(() => {
@@ -188,6 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         unauthenticated,
         needsOnboarding,
+        needsMemberOnboarding,
         signOut,
         refreshMembership,
       }}

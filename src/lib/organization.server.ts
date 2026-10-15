@@ -202,3 +202,87 @@ export const getMyMembership = createServerFn({ method: "GET" }).handler(async (
 
   return data ?? null;
 });
+
+const CompleteMemberOnboardingInput = z.object({
+  fullName: z.string().min(1).max(100).optional(),
+  designation: z.string().min(1).max(100).optional(),
+  departmentId: z.string().uuid().nullable().optional(),
+});
+
+export const completeMemberOnboarding = createServerFn({ method: "POST" })
+  .validator(CompleteMemberOnboardingInput)
+  .handler(async (ctx) => {
+    const data = CompleteMemberOnboardingInput.parse(ctx.data);
+    const headers = getRequestHeaders();
+    const token = headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) throw new Error("Unauthorized");
+
+    const userClient = getUserClient(token);
+    const {
+      data: { user },
+      error: userErr,
+    } = await userClient.auth.getUser();
+    if (userErr || !user) throw new Error("Unauthorized");
+
+    const svc = getServiceClient();
+
+    // 1. Get user's active membership
+    const { data: member } = await svc
+      .from("organization_members")
+      .select("id, organization_id, role")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (!member) throw new Error("No active organization membership found");
+
+    // 2. If fullName is provided, update profiles table
+    if (data.fullName?.trim()) {
+      await svc
+        .from("profiles")
+        .update({ full_name: data.fullName.trim() })
+        .eq("id", user.id);
+    }
+
+    // 3. If departmentId is provided, verify it belongs to this organization
+    if (data.departmentId) {
+      const { data: dept } = await svc
+        .from("departments")
+        .select("id")
+        .eq("id", data.departmentId)
+        .eq("organization_id", member.organization_id)
+        .maybeSingle();
+
+      if (!dept) throw new Error("Selected department does not exist in your organization");
+    }
+
+    // 4. Update organization_members with department and designation
+    const updates: Record<string, any> = {
+      designation: data.designation?.trim() || "Staff",
+      department_id: data.departmentId || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateErr } = await svc
+      .from("organization_members")
+      .update(updates)
+      .eq("id", member.id);
+
+    if (updateErr) throw new Error(updateErr.message);
+
+    // 5. Audit log
+    await svc.from("audit_logs").insert({
+      organization_id: member.organization_id,
+      actor_id: user.id,
+      event_type: "member_onboarded",
+      entity_type: "organization_members",
+      entity_id: member.id,
+      metadata: {
+        department_id: data.departmentId || null,
+        designation: data.designation || "Staff",
+      } as any,
+    });
+
+    return { success: true };
+  });
+

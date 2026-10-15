@@ -1,15 +1,16 @@
-﻿import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { OrgOnboarding } from "@/components/org-onboarding";
+import { MemberOnboarding } from "@/components/member-onboarding";
 
 export const Route = createFileRoute("/app")({
   component: AppLayout,
 });
 
 function AppLayout() {
-  const { user, loading, unauthenticated, needsOnboarding } = useAuth();
+  const { user, loading, unauthenticated, needsOnboarding, needsMemberOnboarding } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,6 +43,11 @@ function AppLayout() {
   // Phase 3: authenticated but no organization - show onboarding
   if (needsOnboarding) {
     return <OrgOnboarding />;
+  }
+
+  // Phase 3.5: authenticated in organization, but needs member onboarding
+  if (needsMemberOnboarding) {
+    return <MemberOnboarding />;
   }
 
   // Phase 4: fully resolved - render app

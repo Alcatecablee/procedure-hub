@@ -118,8 +118,20 @@ function ProceduresList() {
               Consulting the record...
             </div>
           ) : procedures.length === 0 ? (
-            <div className="py-10 text-sm text-muted-foreground font-display italic">
-              No procedures match these filters.
+            <div className="py-10 space-y-3">
+              <p className="text-sm text-muted-foreground font-display italic">
+                No procedures match these filters.
+              </p>
+              {org?.role === "staff" && !org?.departmentId && (
+                <div className="p-4 bg-muted/40 border border-border rounded-sm max-w-lg">
+                  <div className="font-medium text-xs text-foreground mb-1">
+                    Department Assignment Needed
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    You are not currently assigned to a department. Operational procedures assigned to specific departments (such as Call Center Gaap) require department membership. Please contact your administrator or manager to assign your department.
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <ul className="divide-y divide-border">
