@@ -228,7 +228,7 @@ export const getProcedures = createServerFn({ method: "GET" })
 
   const { data: member } = await client
     .from("organization_members")
-    .select("role")
+    .select("role, department_id")
     .eq("organization_id", data.organizationId)
     .eq("user_id", user.id)
     .eq("status", "active")
@@ -240,7 +240,7 @@ export const getProcedures = createServerFn({ method: "GET" })
   let query = client
     .from("procedures")
     .select(
-      "id, title, summary, status, priority, category_id, current_version_id, version_number, effective_date, expiry_date, acknowledgment_required, acknowledgment_audience, created_at, updated_at",
+      "id, title, summary, status, priority, category_id, department_id, current_version_id, version_number, effective_date, expiry_date, acknowledgment_required, acknowledgment_audience, created_at, updated_at",
     )
     .eq("organization_id", data.organizationId);
 
@@ -268,7 +268,47 @@ export const getProcedures = createServerFn({ method: "GET" })
     .range(offset, offset + data.pageSize - 1);
 
   if (error) throw new Error(error.message);
-  return { procedures: procedures || [] };
+
+  const procList = procedures || [];
+  const procIds = procList.map((p) => p.id);
+
+  let userAckMap: Record<string, string> = {};
+  if (procIds.length > 0) {
+    const { data: acks } = await client
+      .from("acknowledgments")
+      .select("procedure_id, procedure_version_id")
+      .eq("user_id", user.id)
+      .in("procedure_id", procIds)
+      .is("revoked_at", null);
+
+    if (acks) {
+      for (const a of acks) {
+        userAckMap[a.procedure_id] = a.procedure_version_id;
+      }
+    }
+  }
+
+  const enriched = procList.map((p) => {
+    const ackedVerId = userAckMap[p.id];
+    const isAcked = Boolean(p.current_version_id && ackedVerId === p.current_version_id);
+    const isTargetAudience =
+      p.acknowledgment_audience === "all_active_members" || member?.role === "staff";
+    const isTargetDepartment = !p.department_id || p.department_id === member?.department_id;
+    const isEligibleRole = ["owner", "admin", "manager", "staff"].includes(member?.role || "");
+    const isObligated = isEligibleRole && isTargetAudience && isTargetDepartment;
+    const needsAck = Boolean(
+      p.acknowledgment_required && p.status === "active" && isObligated && !isAcked,
+    );
+
+    return {
+      ...p,
+      is_acknowledged: isAcked,
+      is_obligated: isObligated,
+      needs_acknowledgment: needsAck,
+    };
+  });
+
+  return { procedures: enriched };
 });
 
 export const createProcedure = createServerFn({ method: "POST" })

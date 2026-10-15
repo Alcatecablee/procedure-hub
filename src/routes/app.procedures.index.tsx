@@ -137,9 +137,14 @@ function ProceduresList() {
                       <div className="col-span-7">
                         <div className="text-[15px] leading-snug flex items-baseline gap-2">
                           <span>{p.title}</span>
-                          {p.acknowledgment_required && p.status === "active" && (
+                          {p.needs_acknowledgment && (
                             <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-priority-high">
                               - Sign required
+                            </span>
+                          )}
+                          {p.is_acknowledged && p.status === "active" && (
+                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-emerald-600 dark:text-emerald-400">
+                              - Signed
                             </span>
                           )}
                         </div>
