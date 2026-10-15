@@ -175,7 +175,18 @@ const InviteInput = z.object({
   department_id: z.string().uuid().optional(),
 });
 
-export async function createInvitationCore(dataRaw: any, token: string) {
+function resolveRedirectOrigin(originHeader?: string): string {
+  if (originHeader) {
+    try {
+      return new URL(originHeader).origin;
+    } catch {
+      return originHeader.replace(/\/$/, "");
+    }
+  }
+  return process.env.VITE_APP_URL || process.env.APP_URL || "https://procedure-hub.vercel.app";
+}
+
+export async function createInvitationCore(dataRaw: any, token: string, originHeader?: string) {
   const data = InviteInput.parse(dataRaw);
   if (!token) throw new Error("Unauthorized");
   const ctx = await getCallerContext(token);
@@ -235,11 +246,15 @@ export async function createInvitationCore(dataRaw: any, token: string) {
         throw new Error(`User status is ${existingMembership.status}.`);
 
       // Allow re-inviting a previously removed member
-      await svc.auth.admin.inviteUserByEmail(email);
+      await svc.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${resolveRedirectOrigin(originHeader)}/login?mode=update-password`,
+      });
     }
   } else {
     // Create via Supabase Auth Admin
-    const { data: inviteData, error: inviteError } = await svc.auth.admin.inviteUserByEmail(email);
+    const { data: inviteData, error: inviteError } = await svc.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${resolveRedirectOrigin(originHeader)}/login?mode=update-password`,
+    });
     if (inviteError || !inviteData.user) {
       throw new Error(`Failed to invite user: ${inviteError?.message || "Unknown error"}`);
     }
@@ -282,8 +297,10 @@ export async function createInvitationCore(dataRaw: any, token: string) {
 export const createInvitation = createServerFn({ method: "POST" })
   .inputValidator(InviteInput)
   .handler(async (req) => {
-    const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
-    return createInvitationCore(req.data, token || "");
+    const headers = getRequestHeaders();
+    const token = headers.get("authorization")?.replace("Bearer ", "");
+    const origin = headers.get("origin") || headers.get("referer") || undefined;
+    return createInvitationCore(req.data, token || "", origin);
   });
 
 
@@ -294,8 +311,10 @@ export const resendInvitation = createServerFn({ method: "POST" })
   .inputValidator(IdInput)
   .handler(async (req) => {
   const data = IdInput.parse(req.data as any);
-  const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+  const headers = getRequestHeaders();
+  const token = headers.get("authorization")?.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
+  const origin = headers.get("origin") || headers.get("referer") || undefined;
   const ctx = await getCallerContext(token);
   enforceAdminOrManager(ctx.role);
 
@@ -329,7 +348,9 @@ export const resendInvitation = createServerFn({ method: "POST" })
   const email = profile.email;
 
   // Re-invite
-  const { error } = await svc.auth.admin.inviteUserByEmail(email);
+  const { error } = await svc.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${resolveRedirectOrigin(origin)}/login?mode=update-password`,
+  });
   if (error) throw new Error(`Failed to resend invite: ${error.message}`);
 
   await svc.from("audit_logs").insert({

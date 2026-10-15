@@ -40,6 +40,14 @@ function LoginPage() {
         setMode("update-password");
       }
     });
+
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      if (hash.includes("type=recovery") || hash.includes("type=invite")) {
+        setMode("update-password");
+      }
+    }
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -186,8 +194,14 @@ function LoginPage() {
                     ? "Create account"
                     : mode === "update-password"
                       ? "Set new password"
-                      : "Reset your password"}
+                      : "Reset or set password"}
               </h1>
+
+              {mode === "reset" && (
+                <p className="text-xs text-muted-foreground -mt-5 mb-6 leading-relaxed">
+                  Enter your email address to receive a secure link. If you accepted an invitation but haven't set a password yet, this link will allow you to create one.
+                </p>
+              )}
 
               <form onSubmit={submit} className="space-y-4" aria-label="Authentication form">
                 {mode === "signup" && (
@@ -242,13 +256,22 @@ function LoginPage() {
                       className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
                     />
                     {mode === "signin" && (
-                      <button
-                        type="button"
-                        onClick={() => setMode("reset")}
-                        className="mt-1.5 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Forgot password?
-                      </button>
+                      <div className="flex items-center justify-between mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setMode("reset")}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Forgot password?
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMode("reset")}
+                          className="text-xs text-primary font-medium hover:underline"
+                        >
+                          Invited? Set password
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
