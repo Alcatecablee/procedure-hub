@@ -191,12 +191,65 @@ export async function acknowledgeProcedureCore(dataRaw: any, token: string) {
   if (!token) throw new Error("Unauthorized");
 
   const { client, user } = await requireAuth(token);
-  await verifyOrgRole(
-    client,
-    data.organizationId,
-    ["owner", "admin", "manager", "staff"],
-    user.id,
-  );
+
+  // 1. Verify user is an active member with an eligible role
+  const { data: member, error: memberErr } = await client
+    .from("organization_members")
+    .select("role, department_id, status")
+    .eq("organization_id", data.organizationId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (memberErr || !member || member.status !== "active") {
+    throw new Error("Unauthorized: Active organization membership required");
+  }
+
+  const eligibleRoles = ["owner", "admin", "manager", "staff"];
+  if (!eligibleRoles.includes(member.role)) {
+    throw new Error(`Forbidden: Insufficient permissions for role ${member.role}`);
+  }
+
+  // 2. Fetch procedure to validate lifecycle status, version, audience, and department scope
+  const { data: proc, error: procErr } = await client
+    .from("procedures")
+    .select(
+      "status, current_version_id, acknowledgment_required, acknowledgment_audience, department_id",
+    )
+    .eq("id", data.procedureId)
+    .eq("organization_id", data.organizationId)
+    .single();
+
+  if (procErr || !proc) {
+    throw new Error("Procedure not found");
+  }
+
+  if (proc.status !== "active") {
+    throw new Error("Cannot acknowledge: Procedure is not active");
+  }
+
+  if (!proc.acknowledgment_required) {
+    throw new Error("Cannot acknowledge: Acknowledgment is not required for this procedure");
+  }
+
+  if (!proc.current_version_id || proc.current_version_id !== data.versionId) {
+    throw new Error(
+      "Cannot acknowledge: This version is no longer the current version. Please refresh and review the latest version.",
+    );
+  }
+
+  // 3. Department scope check
+  if (proc.department_id && proc.department_id !== member.department_id) {
+    throw new Error(
+      "Forbidden: Member is not in the assigned department for this procedure",
+    );
+  }
+
+  // 4. Audience eligibility check
+  if (proc.acknowledgment_audience === "staff" && member.role !== "staff") {
+    throw new Error(
+      "Forbidden: This procedure only requires and accepts acknowledgments from staff",
+    );
+  }
 
   const { error } = await client.rpc("atomic_acknowledge_procedure", {
     _proc_id: data.procedureId,
