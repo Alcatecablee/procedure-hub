@@ -142,12 +142,14 @@ export const createOrganization = createServerFn({ method: "POST" })
   if (orgError || !org) throw new Error(orgError?.message ?? "Failed to create organization");
 
   // Make caller the owner.
+  const nowIso = new Date().toISOString();
   const { error: memberError } = await svc.from("organization_members").insert({
     organization_id: org.id,
     user_id: user.id,
     role: "owner" as MemberRole,
     status: "active",
-    joined_at: new Date().toISOString(),
+    joined_at: nowIso,
+    onboarded_at: nowIso,
   });
   if (memberError) throw new Error(memberError.message);
 
@@ -227,6 +229,21 @@ export async function completeMemberOnboardingCore(
 
   const userClient = getUserClient(token);
 
+  let effectiveFullName = data.fullName?.trim() || "";
+  if (!effectiveFullName) {
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+    if (user) {
+      const { data: profile } = await userClient
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      effectiveFullName = profile?.full_name?.trim() || "";
+    }
+  }
+
   const targetRequestedDeptId =
     data.requestedDepartmentId !== undefined
       ? data.requestedDepartmentId
@@ -241,7 +258,7 @@ export async function completeMemberOnboardingCore(
     _is_global: boolean;
     _audit_event_override?: string | null;
   } = {
-    _full_name: data.fullName || "",
+    _full_name: effectiveFullName,
     _designation: data.designation,
     _requested_department_id: targetRequestedDeptId,
     _is_global: Boolean(data.isGlobal),
@@ -263,14 +280,18 @@ export async function completeMemberOnboardingCore(
   }
 
   const res = (rpcResult || {}) as Record<string, any>;
+  const departmentId = res.departmentId ?? null;
+  const requestedDepartmentId = res.requestedDepartmentId ?? null;
 
   return {
     success: true,
     memberId: res.memberId ?? null,
-    departmentId: res.departmentId ?? null,
-    requestedDepartmentId: res.requestedDepartmentId ?? null,
+    departmentId,
+    requestedDepartmentId,
     requestedDepartmentName: res.requestedDepartmentName ?? null,
-    requiresAdminDepartmentApproval: Boolean(res.requiresAdminDepartmentApproval),
+    requiresAdminDepartmentApproval: Boolean(
+      res.requiresAdminDepartmentApproval ?? (!departmentId && requestedDepartmentId)
+    ),
   };
 }
 

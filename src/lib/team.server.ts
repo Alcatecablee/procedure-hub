@@ -506,15 +506,18 @@ export async function updateMemberRoleCore(dataRaw: any, token: string) {
     updates.requested_department_id = null;
   }
 
+  const effectiveRole = data.role ?? target.role;
   const effectiveDeptId =
     data.department_id !== undefined ? data.department_id : target.department_id;
   const effectiveDesignation =
     data.designation !== undefined ? data.designation : target.designation;
   if (
     !target.onboarded_at &&
-    effectiveDeptId &&
-    effectiveDesignation &&
-    effectiveDesignation.trim().length > 0
+    (effectiveRole === "owner" ||
+      effectiveRole === "admin" ||
+      (effectiveDeptId &&
+        effectiveDesignation &&
+        effectiveDesignation.trim().length > 0))
   ) {
     updates.onboarded_at = new Date().toISOString();
   }
@@ -628,7 +631,7 @@ export const acceptInvitation = createServerFn({ method: "POST" })
   // Fetch the invitation
   const { data: invite } = await svc
     .from("organization_members")
-    .select("user_id, status, organization_id")
+    .select("user_id, status, organization_id, role, department_id, designation")
     .eq("id", data.id)
     .maybeSingle();
 
@@ -653,10 +656,20 @@ export const acceptInvitation = createServerFn({ method: "POST" })
     throw new Error("You are already an active member of an organization.");
   }
 
+  const nowIso = new Date().toISOString();
+  const isFullyConfiguredOnInvite =
+    invite.role === "owner" ||
+    invite.role === "admin" ||
+    Boolean(invite.department_id && invite.designation && invite.designation.trim().length > 0);
+
   // Atomically update the status
   const { error } = await svc
     .from("organization_members")
-    .update({ status: "active", joined_at: new Date().toISOString() })
+    .update({
+      status: "active",
+      joined_at: nowIso,
+      ...(isFullyConfiguredOnInvite ? { onboarded_at: nowIso } : {}),
+    })
     .eq("id", data.id)
     .eq("status", "invited") // concurrency check
     .eq("user_id", user.id);
