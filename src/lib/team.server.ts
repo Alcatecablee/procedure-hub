@@ -59,15 +59,9 @@ export function enforceAdminOrManager(role: MemberRole) {
 
 // â”€â”€â”€ READ OPERATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export const getTeamMembers = createServerFn({ method: "GET" }).handler(async () => {
-  console.log("==> getTeamMembers called");
-  const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
-  if (!token) {
-    console.error("==> getTeamMembers: No token (SSR fallback)");
-    return [];
-  }
+export async function getTeamMembersCore(token: string) {
+  if (!token) return [];
   const ctx = await getCallerContext(token);
-  console.log("==> getTeamMembers ctx:", ctx);
   enforceAdminOrManager(ctx.role);
 
   const svc = getServiceClient();
@@ -80,7 +74,8 @@ export const getTeamMembers = createServerFn({ method: "GET" }).handler(async ()
       role,
       designation,
       department_id,
-      departments ( name ),
+      requested_department_id,
+      onboarded_at,
       status,
       joined_at
     `,
@@ -102,40 +97,33 @@ export const getTeamMembers = createServerFn({ method: "GET" }).handler(async ()
   if (!members || members.length === 0) return [];
 
   const userIds = members.map((m) => m.user_id);
-  const memberIds = members.map((m) => m.id);
-  const [{ data: profiles }, { data: onboardingAudits }] = await Promise.all([
+  const [{ data: profiles }, { data: depts }] = await Promise.all([
     svc.from("profiles").select("id, email, full_name").in("id", userIds),
-    svc
-      .from("audit_logs")
-      .select("entity_id, metadata, created_at")
-      .eq("organization_id", ctx.orgId)
-      .eq("entity_type", "organization_members")
-      .eq("event_type", "member_joined")
-      .in("entity_id", memberIds)
-      .order("created_at", { ascending: false }),
+    svc.from("departments").select("id, name").eq("organization_id", ctx.orgId),
   ]);
 
   const profilesMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-  const requestedDeptMap = new Map<string, { id: string | null; name: string | null }>();
-  for (const row of onboardingAudits || []) {
-    const meta = row.metadata as Record<string, any> | null;
-    if (row.entity_id && meta?.action === "onboarding_completed" && !requestedDeptMap.has(row.entity_id)) {
-      requestedDeptMap.set(row.entity_id, {
-        id: meta.requested_department_id || null,
-        name: meta.requested_department_name || null,
-      });
-    }
-  }
+  const deptMap = new Map(depts?.map((d) => [d.id, d.name]) || []);
 
   return members.map((m) => {
-    const reqDept = !m.department_id ? requestedDeptMap.get(m.id) : null;
+    const assignedDeptName = m.department_id ? (deptMap.get(m.department_id) ?? null) : null;
+    const pendingReqDeptId = !m.department_id ? (m.requested_department_id ?? null) : null;
+    const pendingReqDeptName = pendingReqDeptId ? (deptMap.get(pendingReqDeptId) ?? null) : null;
+
     return {
       ...m,
+      departments: assignedDeptName ? { name: assignedDeptName } : null,
       profiles: profilesMap.get(m.user_id) || null,
-      requested_department_id: reqDept?.id || null,
-      requested_department_name: reqDept?.name || null,
+      requested_department_id: pendingReqDeptId,
+      requested_department_name: pendingReqDeptName,
     };
   });
+}
+
+export const getTeamMembers = createServerFn({ method: "GET" }).handler(async () => {
+  const token = getRequestHeaders().get("authorization")?.replace("Bearer ", "");
+  if (!token) return [];
+  return getTeamMembersCore(token);
 });
 
 export const getPendingInvitations = createServerFn({ method: "GET" }).handler(async () => {
@@ -154,7 +142,6 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
       role,
       designation,
       department_id,
-      departments ( name ),
       status,
       created_at,
       invited_by
@@ -174,17 +161,22 @@ export const getPendingInvitations = createServerFn({ method: "GET" }).handler(a
   if (!members || members.length === 0) return [];
 
   const userIds = members.map((m) => m.user_id);
-  const { data: profiles } = await svc
-    .from("profiles")
-    .select("id, email, full_name")
-    .in("id", userIds);
+  const [{ data: profiles }, { data: depts }] = await Promise.all([
+    svc.from("profiles").select("id, email, full_name").in("id", userIds),
+    svc.from("departments").select("id, name").eq("organization_id", ctx.orgId),
+  ]);
 
   const profilesMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+  const deptMap = new Map(depts?.map((d) => [d.id, d.name]) || []);
 
-  return members.map((m) => ({
-    ...m,
-    profiles: profilesMap.get(m.user_id) || null,
-  }));
+  return members.map((m) => {
+    const assignedDeptName = m.department_id ? (deptMap.get(m.department_id) ?? null) : null;
+    return {
+      ...m,
+      departments: assignedDeptName ? { name: assignedDeptName } : null,
+      profiles: profilesMap.get(m.user_id) || null,
+    };
+  });
 });
 
 // â”€â”€â”€ MUTATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -468,7 +460,7 @@ export async function updateMemberRoleCore(dataRaw: any, token: string) {
 
   const { data: target } = await svc
     .from("organization_members")
-    .select("role, user_id")
+    .select("role, user_id, designation, department_id, requested_department_id, onboarded_at")
     .eq("id", data.memberId)
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
@@ -510,6 +502,21 @@ export async function updateMemberRoleCore(dataRaw: any, token: string) {
       }
     }
     updates.department_id = data.department_id;
+    // Clear any pending department request once an administrator assigns, reassigns, or clears department_id
+    updates.requested_department_id = null;
+  }
+
+  const effectiveDeptId =
+    data.department_id !== undefined ? data.department_id : target.department_id;
+  const effectiveDesignation =
+    data.designation !== undefined ? data.designation : target.designation;
+  if (
+    !target.onboarded_at &&
+    effectiveDeptId &&
+    effectiveDesignation &&
+    effectiveDesignation.trim().length > 0
+  ) {
+    updates.onboarded_at = new Date().toISOString();
   }
 
   const { error } = await svc

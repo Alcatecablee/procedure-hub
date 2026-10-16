@@ -87,6 +87,8 @@ export type OrganizationMember = {
   role: MemberRole;
   designation: string | null;
   department_id: string | null;
+  requested_department_id: string | null;
+  onboarded_at: string | null;
   status: MemberStatus;
   invited_by: string | null;
   joined_at: string | null;
@@ -257,7 +259,13 @@ export type Database = {
       };
       organization_members: {
         Row: OrganizationMember;
-        Insert: Omit<OrganizationMember, "id" | "created_at" | "updated_at">;
+        Insert: Omit<
+          OrganizationMember,
+          "id" | "created_at" | "updated_at" | "requested_department_id" | "onboarded_at"
+        > & {
+          requested_department_id?: string | null;
+          onboarded_at?: string | null;
+        };
         Update: Partial<
           Omit<OrganizationMember, "id" | "created_at" | "organization_id" | "user_id">
         >;
@@ -405,6 +413,16 @@ export type Database = {
       has_org_role: {
         Args: { _org_id: string; _roles: MemberRole[] };
         Returns: boolean;
+      };
+      atomic_complete_member_onboarding: {
+        Args: {
+          _full_name: string;
+          _designation: string;
+          _requested_department_id?: string | null;
+          _is_global?: boolean;
+          _audit_event_override?: string | null;
+        };
+        Returns: Json;
       };
       search_procedures: {
         Args: {

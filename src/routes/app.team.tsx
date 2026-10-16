@@ -375,14 +375,14 @@ function Team() {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  updateMut.mutate({
+                                  updateRoleMut.mutate({
                                     memberId: m.id,
                                     role: m.role,
                                     designation: m.designation,
                                     department_id: (m as any).requested_department_id,
                                   })
                                 }
-                                disabled={updateMut.isPending}
+                                disabled={updateRoleMut.isPending}
                                 className="text-[11px] font-medium text-primary hover:underline"
                               >
                                 Approve

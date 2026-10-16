@@ -87,7 +87,6 @@ export function MemberOnboarding() {
         toast.success("Profile updated! Welcome aboard.");
       }
 
-      await supabase.auth.refreshSession();
       await refreshMembership();
     } catch (err) {
       toast.error((err as Error).message);

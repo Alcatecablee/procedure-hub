@@ -33,25 +33,30 @@ export interface OrgContext {
   departmentId: string | null;
   department_id: string | null;
   designation: string | null;
+  onboardedAt: string | null;
   requestedDepartmentId?: string | null;
   requestedDepartmentName?: string | null;
 }
 
 /**
  * Determines whether an active organization member still needs to complete
- * self-service member onboarding.
+ * self-service member onboarding based on the authoritative organization_members state.
  *
  * Rules:
  * - Owners and Admins never require member onboarding.
  * - A member requires onboarding if they are missing a designation OR if they have no
  *   assigned department AND have not yet completed self-service onboarding (recorded in
- *   server-controlled user.app_metadata.onboarded_orgs[orgId]).
+ *   organization_members.onboarded_at).
  * - This ensures members with a designation but no department (or a department but no
  *   designation) are never silently skipped.
  */
 export function computeNeedsMemberOnboarding(
-  resolvedOrg: Pick<OrgContext, "organization" | "role" | "departmentId" | "designation"> | null,
-  currentUser: Pick<User, "app_metadata"> | null
+  resolvedOrg:
+    | (Pick<OrgContext, "role" | "departmentId" | "designation"> & {
+        onboardedAt?: string | null;
+        member?: Pick<OrganizationMember, "onboarded_at"> | null;
+      })
+    | null
 ): boolean {
   if (!resolvedOrg) return false;
   if (resolvedOrg.role === "owner" || resolvedOrg.role === "admin") {
@@ -60,11 +65,8 @@ export function computeNeedsMemberOnboarding(
 
   const hasDesignation = Boolean(resolvedOrg.designation && resolvedOrg.designation.trim().length > 0);
   const hasDepartment = Boolean(resolvedOrg.departmentId);
-
-  const onboardedOrgs =
-    (currentUser?.app_metadata?.onboarded_orgs as Record<string, any> | undefined) || {};
   const hasCompletedSelfServiceOnboarding = Boolean(
-    onboardedOrgs[resolvedOrg.organization.id]?.onboarded_at
+    resolvedOrg.onboardedAt ?? resolvedOrg.member?.onboarded_at
   );
 
   // If both designation and department are assigned, no onboarding is needed
@@ -107,7 +109,7 @@ async function resolveProfile(userId: string): Promise<Profile | null> {
   return data ?? null;
 }
 
-async function resolveMembership(userId: string, currentUser?: User | null): Promise<OrgContext | null> {
+async function resolveMembership(userId: string): Promise<OrgContext | null> {
   // Get the user's active membership (first active org).
   const { data: member } = await supabase
     .from("organization_members")
@@ -124,9 +126,20 @@ async function resolveMembership(userId: string, currentUser?: User | null): Pro
   const org = memberCast.organizations;
   if (!org || org.status === "suspended") return null;
 
-  const onboardedMeta = (currentUser?.app_metadata?.onboarded_orgs as Record<string, any> | undefined)?.[
-    org.id
-  ];
+  const requestedDeptId = !memberCast.department_id
+    ? (memberCast.requested_department_id ?? null)
+    : null;
+
+  let requestedDeptName: string | null = null;
+  if (requestedDeptId) {
+    const { data: reqDept } = await supabase
+      .from("departments")
+      .select("name")
+      .eq("id", requestedDeptId)
+      .eq("organization_id", org.id)
+      .maybeSingle();
+    requestedDeptName = reqDept?.name ?? null;
+  }
 
   return {
     organization: org,
@@ -137,6 +150,8 @@ async function resolveMembership(userId: string, currentUser?: User | null): Pro
       role: memberCast.role,
       designation: memberCast.designation ?? null,
       department_id: memberCast.department_id ?? null,
+      requested_department_id: memberCast.requested_department_id ?? null,
+      onboarded_at: memberCast.onboarded_at ?? null,
       status: memberCast.status,
       invited_by: memberCast.invited_by,
       joined_at: memberCast.joined_at,
@@ -147,12 +162,9 @@ async function resolveMembership(userId: string, currentUser?: User | null): Pro
     departmentId: memberCast.department_id ?? null,
     department_id: memberCast.department_id ?? null,
     designation: memberCast.designation ?? null,
-    requestedDepartmentId: !memberCast.department_id
-      ? (onboardedMeta?.requested_department_id ?? null)
-      : null,
-    requestedDepartmentName: !memberCast.department_id
-      ? (onboardedMeta?.requested_department_name ?? null)
-      : null,
+    onboardedAt: memberCast.onboarded_at ?? null,
+    requestedDepartmentId: requestedDeptId,
+    requestedDepartmentName: requestedDeptName,
   };
 }
 
@@ -195,34 +207,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Resolve in parallel - both are needed before we unblock rendering.
     const [resolvedProfile, resolvedOrg] = await Promise.all([
       resolveProfile(s.user.id),
-      resolveMembership(s.user.id, s.user),
+      resolveMembership(s.user.id),
     ]);
 
     setProfile(resolvedProfile);
     setOrg(resolvedOrg);
     setNeedsOnboarding(!resolvedOrg);
-    setNeedsMemberOnboarding(computeNeedsMemberOnboarding(resolvedOrg, s.user));
+    setNeedsMemberOnboarding(computeNeedsMemberOnboarding(resolvedOrg));
 
     setLoading(false);
   }, []);
 
   const refreshMembership = useCallback(async () => {
     if (!user) return;
-    // Fetch fresh user metadata (including server-updated app_metadata.onboarded_orgs)
-    const { data: freshUserData } = await supabase.auth.getUser();
-    const effectiveUser = freshUserData?.user ?? user;
-    if (freshUserData?.user) {
-      setUser(freshUserData.user);
-    }
-
     const [resolved, resolvedProf] = await Promise.all([
-      resolveMembership(effectiveUser.id, effectiveUser),
-      resolveProfile(effectiveUser.id),
+      resolveMembership(user.id),
+      resolveProfile(user.id),
     ]);
     setOrg(resolved);
     setProfile(resolvedProf);
     setNeedsOnboarding(!resolved);
-    setNeedsMemberOnboarding(computeNeedsMemberOnboarding(resolved, effectiveUser));
+    setNeedsMemberOnboarding(computeNeedsMemberOnboarding(resolved));
   }, [user]);
 
   useEffect(() => {
