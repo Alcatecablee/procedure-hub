@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import operationsLedgerImg from "@/assets/operations-ledger.jpg";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { mode?: Mode } => ({
@@ -129,75 +130,98 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background paper-grain grid lg:grid-cols-12">
-      {/* Left Column: Established Institutional Masthead & Editorial Plate */}
-      <div className="hidden lg:flex lg:col-span-7 flex-col justify-between border-r border-border p-10 xl:p-14 bg-surface/80">
-        <div>
-          {/* Institutional Masthead Header */}
-          <div className="border-t-2 border-b border-border py-2.5 mb-8 flex items-center justify-between">
-            <Link to="/" className="font-display text-xl font-bold tracking-tight text-foreground">
-              PROCEDURE HUB
-            </Link>
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              Operational Ledger - Est. 2026
+      {/* Left Column: Established Enterprise Masthead & Operational Showcase */}
+      <div className="hidden lg:flex lg:col-span-7 flex-col justify-between border-r border-border p-10 xl:p-14 bg-surface/70">
+        {/* Brand Bar */}
+        <div className="flex items-center justify-between pb-6 border-b border-border">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="h-6 w-6 bg-primary rounded-sm flex items-center justify-center text-primary-foreground font-mono text-xs font-bold tracking-tight">
+              P
+            </div>
+            <span className="font-display text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+              Procedure Hub
             </span>
+          </Link>
+          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            Operational System of Record
+          </span>
+        </div>
+
+        {/* Center Editorial Showcase */}
+        <div className="my-auto py-8 max-w-xl">
+          <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-3">
+            Standard Work &amp; Compliance
+          </div>
+          <h1 className="font-display text-3xl xl:text-4xl leading-[1.18] tracking-tight text-foreground mb-4">
+            From scattered conversations
+            <span className="block italic font-normal text-ink-soft">
+              to accountable operations.
+            </span>
+          </h1>
+
+          <p className="text-sm leading-relaxed text-ink-soft mb-8">
+            Procedure Hub captures operational policies and standard procedures from frontline
+            communications, subjects them to mandatory human review, and maintains a verifiable,
+            tamper-evident audit trail of employee acknowledgments.
+          </p>
+
+          {/* Editorial Operations Illustration */}
+          <div className="border border-border bg-card p-2.5 shadow-xs rounded-lg mb-8">
+            <div className="aspect-[16/10] overflow-hidden bg-muted/20 border border-border/60 rounded-md">
+              <img
+                src={operationsLedgerImg}
+                alt="Operations and frontline procedure execution floor"
+                className="w-full h-full object-cover object-[center_35%]"
+                loading="eager"
+              />
+            </div>
+            <div className="mt-2.5 px-1 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+              <span>Frontline Operations Floor</span>
+              <span>Continuous Compliance</span>
+            </div>
           </div>
 
-          <div className="max-w-xl">
-            <div className="eyebrow mb-3">Volume I - Folio 02</div>
-            <h1 className="font-display text-3xl xl:text-4xl leading-[1.12] tracking-tight text-foreground mb-4">
-              The record begins
-              <span className="block italic font-normal text-ink-soft">
-                when the first hand signs it.
-              </span>
-            </h1>
-
-            <p className="text-sm leading-relaxed text-ink-soft mb-8 max-w-lg">
-              Procedure Hub establishes the operational system of record. Policies and standard
-              operating procedures are authored with strict departmental scope, assigned to active
-              personnel, and verified through digital acknowledgment.
-            </p>
-
-            {/* Archival Print / Operating Floor Illustration */}
-            <div className="border border-border bg-card p-3 shadow-xs rounded-xs mb-8">
-              <div className="aspect-[16/10] overflow-hidden bg-muted/40 border border-border/60 rounded-xs">
-                <img
-                  src="/operations-ledger.jpg"
-                  alt="Operations and customer support floor"
-                  className="w-full h-full object-cover object-top opacity-95 hover:opacity-100 transition-opacity"
-                  loading="eager"
-                />
+          {/* Institutional Safeguards */}
+          <div className="grid grid-cols-3 gap-6 pt-6 border-t border-border">
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-1">
+                Governance
               </div>
-              <div className="mt-2.5 flex items-center justify-between text-[10px] font-mono text-muted-foreground tracking-wider uppercase">
-                <span>Plate I - Frontline Operations & Case Review</span>
-                <span>Customer Care Division</span>
+              <div className="text-xs font-semibold text-foreground">
+                Human-in-the-Loop
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Proposals require human review before publishing
               </div>
             </div>
-
-            {/* Official Registry Specification Table */}
-            <div className="border-t border-b border-border divide-y divide-border text-xs font-mono">
-              <div className="py-2 flex justify-between">
-                <span className="text-muted-foreground uppercase tracking-wider">Folio Registry</span>
-                <span className="text-foreground font-medium">Vol. I - Ref. 02</span>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-1">
+                Security
               </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-muted-foreground uppercase tracking-wider">Classification</span>
-                <span className="text-foreground font-medium">Authoritative Operational Ledger</span>
+              <div className="text-xs font-semibold text-foreground">
+                Write-Path Isolation
               </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-muted-foreground uppercase tracking-wider">Audience Scope</span>
-                <span className="text-foreground font-medium">Frontline Staff & Department Management</span>
+              <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Database-enforced tenant and role policies
               </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-muted-foreground uppercase tracking-wider">Audit Security</span>
-                <span className="text-foreground font-medium">Database-Enforced Immutability</span>
+            </div>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-1">
+                Integrity
+              </div>
+              <div className="text-xs font-semibold text-foreground">
+                Immutable Ledger
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Audit log entries cannot be mutated or deleted
               </div>
             </div>
           </div>
         </div>
 
         {/* Institutional Footer */}
-        <div className="pt-8 border-t border-border flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-          <span>Compiled - Bound - Held in Common</span>
+        <div className="pt-6 border-t border-border flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <span>Procedure Hub Enterprise</span>
           <span>Official System of Record</span>
         </div>
       </div>
@@ -206,19 +230,26 @@ function LoginPage() {
       <div className="lg:col-span-5 flex items-center justify-center p-6 sm:p-10 lg:p-12">
         <div className="w-full max-w-md">
           {/* Mobile Masthead Header */}
-          <div className="lg:hidden border-t-2 border-b border-border py-2 mb-8 flex items-center justify-between">
-            <Link to="/" className="font-display text-lg font-bold tracking-tight text-foreground">
-              PROCEDURE HUB
+          <div className="lg:hidden pb-6 mb-6 border-b border-border flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="h-5 w-5 bg-primary rounded-sm flex items-center justify-center text-primary-foreground font-mono text-xs font-bold">
+                P
+              </div>
+              <span className="font-display text-lg font-bold tracking-tight text-foreground">
+                Procedure Hub
+              </span>
             </Link>
-            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-              Operational Ledger
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              Sign In
             </span>
           </div>
 
-          <div className="bg-card border border-border p-7 sm:p-9 rounded-sm shadow-xs">
+          <div className="bg-card border border-border p-7 sm:p-9 rounded-lg shadow-xs">
             {mode === "reset" && resetSent ? (
               <div>
-                <div className="eyebrow mb-2">Folio 02 - Password Reset</div>
+                <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-2">
+                  Password Recovery
+                </div>
                 <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground mb-4">
                   Check your inbox
                 </h2>
@@ -232,44 +263,47 @@ function LoginPage() {
                     setMode("signin");
                     setResetSent(false);
                   }}
-                  className="text-sm text-foreground underline underline-offset-4 hover:text-ink-soft transition-colors"
+                  className="text-sm text-foreground underline underline-offset-4 hover:text-ink-soft transition-colors cursor-pointer"
                 >
                   Return to sign in
                 </button>
               </div>
             ) : (
               <>
-                <div className="eyebrow mb-2">
+                <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-2">
                   {mode === "signin"
-                    ? "Folio 02 - Sign In"
+                    ? "Workspace Access"
                     : mode === "signup"
-                      ? "Folio 02 - Open Account"
+                      ? "Create Account"
                       : mode === "update-password"
-                        ? "Folio 02 - Set Password"
-                        : "Folio 02 - Password Recovery"}
+                        ? "Security Configuration"
+                        : "Account Recovery"}
                 </div>
 
-                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground mb-6">
+                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground mb-2">
                   {mode === "signin"
-                    ? "Sign in"
+                    ? "Sign in to your workspace"
                     : mode === "signup"
-                      ? "Create account"
+                      ? "Create your account"
                       : mode === "update-password"
                         ? "Set new password"
                         : "Reset or set password"}
                 </h2>
 
-                {mode === "reset" && (
-                  <p className="text-xs text-muted-foreground -mt-3 mb-6 leading-relaxed">
-                    Enter your email address to receive a secure link. If you accepted an invitation
-                    without setting a password, this link will allow you to establish one.
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
+                  {mode === "signin"
+                    ? "Enter your credentials to access your procedures and compliance ledger."
+                    : mode === "signup"
+                      ? "Register your work credentials to join your team's operational workspace."
+                      : mode === "update-password"
+                        ? "Choose a strong password with at least 8 characters."
+                        : "Enter your work email address to receive a secure password configuration link."}
+                </p>
 
                 <form onSubmit={submit} className="space-y-4" aria-label="Authentication form">
                   {mode === "signup" && (
                     <div>
-                      <label className="eyebrow block mb-1.5" htmlFor="name">
+                      <label className="block text-xs font-medium text-foreground tracking-wide mb-1.5" htmlFor="name">
                         Full Name
                       </label>
                       <input
@@ -279,14 +313,15 @@ function LoginPage() {
                         onChange={(e) => setName(e.target.value)}
                         disabled={busy}
                         required
-                        className="w-full bg-background border border-border px-3.5 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-60 transition-colors"
+                        placeholder="e.g. Jane Doe"
+                        className="w-full bg-background border border-border px-3.5 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 transition-colors"
                       />
                     </div>
                   )}
 
                   {mode !== "update-password" && (
                     <div>
-                      <label className="eyebrow block mb-1.5" htmlFor="email">
+                      <label className="block text-xs font-medium text-foreground tracking-wide mb-1.5" htmlFor="email">
                         Work Email
                       </label>
                       <input
@@ -297,7 +332,8 @@ function LoginPage() {
                         disabled={busy}
                         required
                         autoComplete="email"
-                        className="w-full bg-background border border-border px-3.5 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-60 transition-colors"
+                        placeholder="you@company.com"
+                        className="w-full bg-background border border-border px-3.5 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 transition-colors"
                       />
                     </div>
                   )}
@@ -305,13 +341,13 @@ function LoginPage() {
                   {mode !== "reset" && (
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="eyebrow" htmlFor="password">
+                        <label className="block text-xs font-medium text-foreground tracking-wide" htmlFor="password">
                           {mode === "update-password" ? "New Password" : "Password"}
                         </label>
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors uppercase"
+                          className="font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors uppercase cursor-pointer"
                         >
                           {showPassword ? "Hide" : "Show"}
                         </button>
@@ -325,7 +361,8 @@ function LoginPage() {
                         required
                         minLength={8}
                         autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                        className="w-full bg-background border border-border px-3.5 py-2 text-sm rounded-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-60 transition-colors"
+                        placeholder="Minimum 8 characters"
+                        className="w-full bg-background border border-border px-3.5 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 transition-colors"
                       />
 
                       {mode === "signin" && (
@@ -333,14 +370,14 @@ function LoginPage() {
                           <button
                             type="button"
                             onClick={() => setMode("reset")}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                           >
                             Forgot password?
                           </button>
                           <button
                             type="button"
                             onClick={() => setMode("reset")}
-                            className="text-primary hover:underline font-medium"
+                            className="text-primary hover:underline font-medium cursor-pointer"
                           >
                             Invited? Set password
                           </button>
@@ -352,7 +389,7 @@ function LoginPage() {
                   <button
                     type="submit"
                     disabled={busy}
-                    className="w-full bg-primary text-primary-foreground py-2.5 px-4 text-sm font-medium rounded-sm hover:bg-primary/95 disabled:opacity-60 transition-colors cursor-pointer"
+                    className="w-full bg-primary text-primary-foreground py-2.5 px-4 text-sm font-medium rounded-md hover:bg-primary/95 active:scale-[0.99] disabled:opacity-60 transition-all cursor-pointer shadow-xs"
                   >
                     {busy
                       ? "Processing..."
@@ -373,7 +410,7 @@ function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setMode("signup")}
-                        className="text-foreground underline underline-offset-4 hover:text-ink-soft transition-colors"
+                        className="text-foreground underline underline-offset-4 hover:text-ink-soft transition-colors cursor-pointer"
                       >
                         Create one
                       </button>
@@ -383,7 +420,7 @@ function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setMode("signin")}
-                        className="text-foreground underline underline-offset-4 hover:text-ink-soft transition-colors"
+                        className="text-foreground underline underline-offset-4 hover:text-ink-soft transition-colors cursor-pointer"
                       >
                         Back to sign in
                       </button>
@@ -394,7 +431,7 @@ function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setMode("signin")}
-                        className="text-foreground underline underline-offset-4 hover:text-ink-soft transition-colors"
+                        className="text-foreground underline underline-offset-4 hover:text-ink-soft transition-colors cursor-pointer"
                       >
                         Sign in
                       </button>
@@ -403,6 +440,10 @@ function LoginPage() {
                 </div>
               </>
             )}
+          </div>
+
+          <div className="mt-6 text-center text-xs text-muted-foreground font-mono">
+            Protected by database-enforced authorization and session-level isolation.
           </div>
         </div>
       </div>
