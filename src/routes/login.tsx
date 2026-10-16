@@ -98,7 +98,6 @@ function LoginPage() {
       void navigate({ to: "/app" });
     } catch (err) {
       const msg = (err as Error).message ?? "";
-      // Map Supabase error strings to human-readable messages.
       if (msg.includes("Invalid login credentials") || msg.includes("invalid_credentials")) {
         toast.error("Incorrect email or password.");
       } else if (msg.includes("Email not confirmed") || msg.includes("email_not_confirmed")) {
@@ -129,54 +128,100 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background paper-grain grid md:grid-cols-2">
-      {/* Left Column: Authentic Editorial Brand Panel */}
-      <div className="hidden md:flex flex-col justify-between border-r border-border p-10 lg:p-14 bg-surface">
+    <div className="min-h-screen bg-background paper-grain grid lg:grid-cols-12">
+      {/* Left Column: Established Institutional Masthead & Editorial Plate */}
+      <div className="hidden lg:flex lg:col-span-7 flex-col justify-between border-r border-border p-10 xl:p-14 bg-surface/80">
         <div>
-          <Link to="/" className="font-display text-2xl tracking-tight text-foreground">
-            Procedure Hub
-          </Link>
-        </div>
+          {/* Institutional Masthead Header */}
+          <div className="border-t-2 border-b border-border py-2.5 mb-8 flex items-center justify-between">
+            <Link to="/" className="font-display text-xl font-bold tracking-tight text-foreground">
+              PROCEDURE HUB
+            </Link>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Operational Ledger - Est. 2026
+            </span>
+          </div>
 
-        <div className="max-w-md my-auto py-8">
-          <div className="eyebrow mb-4">Volume I - Folio 02</div>
-          <h1 className="font-display text-4xl lg:text-5xl leading-[1.08] tracking-tight text-foreground">
-            The record begins
-            <span className="block italic text-ink-soft mt-1">when the first hand signs it.</span>
-          </h1>
-          <p className="mt-6 text-sm leading-relaxed text-ink-soft">
-            Procedure Hub is your team's operational ledger - quiet, structured, and shared. Sign in
-            to consult the active record or verify compliance obligations.
-          </p>
+          <div className="max-w-xl">
+            <div className="eyebrow mb-3">Volume I - Folio 02</div>
+            <h1 className="font-display text-3xl xl:text-4xl leading-[1.12] tracking-tight text-foreground mb-4">
+              The record begins
+              <span className="block italic font-normal text-ink-soft">
+                when the first hand signs it.
+              </span>
+            </h1>
 
-          <div className="rule mt-8 pt-8">
-            <div className="eyebrow mb-2">Protocol Note</div>
-            <p className="text-xs text-muted-foreground leading-relaxed italic">
-              "A message in chat is an announcement. A procedure in the ledger is an authoritative commitment."
+            <p className="text-sm leading-relaxed text-ink-soft mb-8 max-w-lg">
+              Procedure Hub establishes the operational system of record. Policies and standard
+              operating procedures are authored with strict departmental scope, assigned to active
+              personnel, and verified through digital acknowledgment.
             </p>
+
+            {/* Archival Print / Operating Floor Illustration */}
+            <div className="border border-border bg-card p-3 shadow-xs rounded-xs mb-8">
+              <div className="aspect-[16/10] overflow-hidden bg-muted/40 border border-border/60 rounded-xs">
+                <img
+                  src="/operations-ledger.jpg"
+                  alt="Operations and customer support floor"
+                  className="w-full h-full object-cover object-top opacity-95 hover:opacity-100 transition-opacity"
+                  loading="eager"
+                />
+              </div>
+              <div className="mt-2.5 flex items-center justify-between text-[10px] font-mono text-muted-foreground tracking-wider uppercase">
+                <span>Plate I - Frontline Operations & Case Review</span>
+                <span>Customer Care Division</span>
+              </div>
+            </div>
+
+            {/* Official Registry Specification Table */}
+            <div className="border-t border-b border-border divide-y divide-border text-xs font-mono">
+              <div className="py-2 flex justify-between">
+                <span className="text-muted-foreground uppercase tracking-wider">Folio Registry</span>
+                <span className="text-foreground font-medium">Vol. I - Ref. 02</span>
+              </div>
+              <div className="py-2 flex justify-between">
+                <span className="text-muted-foreground uppercase tracking-wider">Classification</span>
+                <span className="text-foreground font-medium">Authoritative Operational Ledger</span>
+              </div>
+              <div className="py-2 flex justify-between">
+                <span className="text-muted-foreground uppercase tracking-wider">Audience Scope</span>
+                <span className="text-foreground font-medium">Frontline Staff & Department Management</span>
+              </div>
+              <div className="py-2 flex justify-between">
+                <span className="text-muted-foreground uppercase tracking-wider">Audit Security</span>
+                <span className="text-foreground font-medium">Database-Enforced Immutability</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-          Compiled - Bound - Held in Common
+        {/* Institutional Footer */}
+        <div className="pt-8 border-t border-border flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <span>Compiled - Bound - Held in Common</span>
+          <span>Official System of Record</span>
         </div>
       </div>
 
       {/* Right Column: Clean, Structured Form Card */}
-      <div className="flex items-center justify-center p-6 md:p-12">
+      <div className="lg:col-span-5 flex items-center justify-center p-6 sm:p-10 lg:p-12">
         <div className="w-full max-w-md">
-          {/* Mobile Header */}
-          <div className="md:hidden mb-8">
-            <Link to="/" className="font-display text-2xl tracking-tight text-foreground">
-              Procedure Hub
+          {/* Mobile Masthead Header */}
+          <div className="lg:hidden border-t-2 border-b border-border py-2 mb-8 flex items-center justify-between">
+            <Link to="/" className="font-display text-lg font-bold tracking-tight text-foreground">
+              PROCEDURE HUB
             </Link>
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+              Operational Ledger
+            </span>
           </div>
 
-          <div className="bg-card border border-border p-8 sm:p-10 rounded-sm shadow-xs">
+          <div className="bg-card border border-border p-7 sm:p-9 rounded-sm shadow-xs">
             {mode === "reset" && resetSent ? (
               <div>
                 <div className="eyebrow mb-2">Folio 02 - Password Reset</div>
-                <h2 className="font-display text-3xl font-normal text-foreground mb-4">Check your inbox</h2>
+                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground mb-4">
+                  Check your inbox
+                </h2>
                 <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
                   We have sent a secure link to <strong className="text-foreground">{email}</strong>.
                   Open the link in your email to configure your password and access your workspace.
@@ -204,7 +249,7 @@ function LoginPage() {
                         : "Folio 02 - Password Recovery"}
                 </div>
 
-                <h2 className="font-display text-3xl font-normal text-foreground mb-6">
+                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground mb-6">
                   {mode === "signin"
                     ? "Sign in"
                     : mode === "signup"
