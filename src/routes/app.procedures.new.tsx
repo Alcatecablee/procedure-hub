@@ -265,6 +265,15 @@ function NewProcedure() {
               />
             </div>
           </div>
+          <div>
+            <label className="block eyebrow mb-2">Content (Markdown)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full bg-card border border-input px-3 py-2 text-sm rounded-sm font-mono"
+              rows={12}
+            />
+          </div>
 
           <div className="space-y-4 pt-2">
             <label className="flex items-center gap-3 cursor-pointer">
